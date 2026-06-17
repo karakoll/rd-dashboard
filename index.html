@@ -366,6 +366,7 @@ async function initApp(user){
   document.getElementById('app').style.display='flex';
   updateDateIndicator();
   await loadData();
+  startKeepAlive();
 }
 sb.auth.getSession().then(({data:{session}})=>{if(session?.user)initApp(session.user)});
 document.getElementById('login-password').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin()});
@@ -802,6 +803,21 @@ async function deleteMilestone(milestoneId){
   showToast('Milestone eliminata','success');
 }
 
+// ── KEEP-ALIVE PING ───────────────────────────────────────────
+async function pingSupabase() {
+  try {
+    await sb.from('projects').select('id').limit(1);
+    console.log('[keep-alive] Supabase ping OK', new Date().toISOString());
+  } catch(e) {
+    console.warn('[keep-alive] Ping failed', e);
+  }
+}
+
+function startKeepAlive() {
+  pingSupabase();
+  setInterval(pingSupabase, 12 * 60 * 60 * 1000);
+}
+  
 // ── UTILS ─────────────────────────────────────────────────────
 function escHtml(str){return String(str||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
 function formatDate(d){
