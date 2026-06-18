@@ -184,6 +184,72 @@ body{background:var(--bg);color:var(--text);font-family:"DM Sans",sans-serif;fon
 .add-milestone-form input:focus{border-color:var(--accent)}
 .add-milestone-form .btn{padding:7px 12px;font-size:12px;width:auto}
 
+/* TABS (Gantt / MBO) */
+#view-tabs{display:flex;gap:4px;margin-bottom:16px;border-bottom:1px solid var(--border)}
+.view-tab{padding:9px 18px;background:none;border:none;border-bottom:2px solid transparent;color:var(--text3);font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .15s;margin-bottom:-1px}
+.view-tab:hover{color:var(--text)}
+.view-tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+
+/* MBO VIEW */
+#mbo-view{display:none}
+.mbo-toolbar{display:flex;align-items:center;gap:10px;margin-bottom:18px;flex-wrap:wrap}
+.mbo-toolbar select{padding:7px 12px;background:white;border:1px solid var(--border2);border-radius:var(--radius);font-family:inherit;font-size:13px;color:var(--text);outline:none}
+.mbo-toolbar select:focus{border-color:var(--accent)}
+.mbo-card{background:var(--bg4);border:1px solid var(--border);border-radius:var(--radius2);padding:0;box-shadow:var(--shadow);margin-bottom:18px;overflow:hidden}
+.mbo-card-head{display:flex;align-items:center;gap:12px;padding:16px 20px;border-bottom:1px solid var(--border);flex-wrap:wrap}
+.mbo-card-head .mbo-avatar{width:34px;height:34px;border-radius:50%;background:var(--accent);color:white;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;flex-shrink:0}
+.mbo-card-head .mbo-who{flex:1;min-width:140px}
+.mbo-card-head .mbo-name{font-family:"DM Serif Display",serif;font-size:17px}
+.mbo-card-head .mbo-rolelbl{font-size:11px;color:var(--text3)}
+.mbo-bonus-box{text-align:right;padding:6px 14px;background:white;border:1px solid var(--border);border-radius:var(--radius)}
+.mbo-bonus-box .lbl{font-size:9px;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);font-weight:700}
+.mbo-bonus-box .val{font-family:"DM Serif Display",serif;font-size:20px;line-height:1.1}
+.mbo-bonus-box .val.zero{color:var(--red)}
+.mbo-bonus-box .val.ok{color:var(--green)}
+.mbo-bonus-box .sub{font-size:10px;color:var(--text3)}
+.mbo-gate{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;padding:14px 20px;background:var(--bg);border-bottom:1px solid var(--border)}
+.mbo-gate .field{}
+.mbo-gate label{display:block;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text3);margin-bottom:4px}
+.mbo-gate input,.mbo-gate .ro{width:100%;padding:7px 10px;border:1px solid var(--border2);border-radius:var(--radius);font-family:inherit;font-size:13px;color:var(--text);outline:none;background:white}
+.mbo-gate input:focus{border-color:var(--accent)}
+.mbo-gate .ro{background:var(--bg3);color:var(--text2)}
+.mbo-gate-status{grid-column:1/-1;font-size:12px;padding:8px 10px;border-radius:var(--radius);font-weight:600}
+.mbo-gate-status.pass{background:rgba(30,126,74,.12);color:var(--green)}
+.mbo-gate-status.warn{background:rgba(176,125,0,.14);color:var(--yellow)}
+.mbo-gate-status.fail{background:rgba(192,57,43,.12);color:var(--red)}
+.mbo-objs{padding:8px 20px 16px}
+.mbo-obj{border:1px solid var(--border);border-radius:var(--radius);margin-top:12px;background:white;overflow:hidden}
+.mbo-obj-head{display:flex;align-items:center;gap:10px;padding:11px 14px;cursor:pointer;user-select:none}
+.mbo-obj-head:hover{background:var(--bg)}
+.mbo-obj-num{width:22px;height:22px;border-radius:50%;background:var(--accent);color:white;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.mbo-obj-title{flex:1;font-size:13px;font-weight:600;color:var(--text)}
+.mbo-obj-weight{font-size:11px;color:var(--text3);background:var(--bg3);padding:2px 8px;border-radius:10px;flex-shrink:0}
+.mbo-obj-eur{font-size:12px;font-weight:700;color:var(--accent);flex-shrink:0;min-width:64px;text-align:right}
+.mbo-obj-prog{display:flex;align-items:center;gap:8px;padding:0 14px 11px}
+.mbo-obj-prog .bar{flex:1;height:7px;background:var(--border);border-radius:4px;overflow:hidden}
+.mbo-obj-prog .bar > div{height:100%;border-radius:4px;transition:width .4s}
+.mbo-obj-prog .pctin{width:64px;padding:4px 6px;border:1px solid var(--border2);border-radius:var(--radius);font-size:12px;font-family:inherit;text-align:right;outline:none}
+.mbo-obj-prog .pctin:focus{border-color:var(--accent)}
+.mbo-obj-prog .tier{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:2px 7px;border-radius:10px;flex-shrink:0}
+.tier-0{background:var(--bg3);color:var(--text3)}
+.tier-50{background:rgba(176,125,0,.15);color:var(--yellow)}
+.tier-75{background:rgba(43,94,167,.14);color:var(--blue)}
+.tier-100{background:rgba(30,126,74,.14);color:var(--green)}
+.mbo-sub{border-top:1px solid var(--border);padding:6px 14px 10px;display:none}
+.mbo-sub.open{display:block}
+.mbo-sub-item{display:flex;align-items:center;gap:8px;padding:6px 0;font-size:12px;border-bottom:1px dashed var(--border)}
+.mbo-sub-item:last-child{border-bottom:none}
+.mbo-sub-item .nm{flex:1;color:var(--text2)}
+.mbo-sub-item .vals{display:flex;align-items:center;gap:4px;flex-shrink:0}
+.mbo-sub-item .vals input{width:54px;padding:3px 5px;border:1px solid var(--border2);border-radius:4px;font-size:11px;text-align:right;font-family:inherit;outline:none}
+.mbo-sub-item .vals input:focus{border-color:var(--accent)}
+.mbo-sub-item .vals .tg{color:var(--text3);font-size:11px}
+.mbo-sub-item .dd{font-size:10px;color:var(--text3);flex-shrink:0;min-width:62px;text-align:right}
+.mbo-sub-item .lnk{font-size:11px;color:var(--accent);text-decoration:none;flex-shrink:0}
+.mbo-sub-item .lnk:hover{text-decoration:underline}
+.mbo-obj-actions{padding:0 14px 12px;display:flex;justify-content:flex-end}
+.mbo-empty{padding:50px;text-align:center;color:var(--text3);font-size:13px}
+
 /* TOAST */
 #toast{position:fixed;bottom:20px;right:20px;background:white;border:1px solid var(--border2);border-radius:var(--radius2);padding:11px 16px;font-size:13px;color:var(--text);box-shadow:var(--shadow2);z-index:2000;transform:translateY(16px);opacity:0;transition:all .3s;max-width:300px}
 #toast.show{transform:translateY(0);opacity:1}
@@ -210,6 +276,10 @@ body{background:var(--bg);color:var(--text);font-family:"DM Sans",sans-serif;fon
   .filter-label,.filter-sep{display:none}
   .status-filter{font-size:10px;padding:3px 8px}
   .project-name{font-size:11px}
+  .mbo-card-head{gap:8px}
+  .mbo-bonus-box{flex:1;text-align:left}
+  .mbo-gate{grid-template-columns:1fr 1fr}
+  .mbo-obj-head{flex-wrap:wrap}
   .gantt-bar-label{font-size:9px}
   .modal{padding:16px;max-height:94vh}
   .modal-header h2{font-size:15px}
@@ -261,6 +331,12 @@ body{background:var(--bg);color:var(--text);font-family:"DM Sans",sans-serif;fon
   </header>
 
   <main id="main-content">
+    <div id="view-tabs">
+      <button class="view-tab active" id="tab-gantt" onclick="switchView('gantt')">Gantt Progetti</button>
+      <button class="view-tab" id="tab-mbo" onclick="switchView('mbo')" style="display:none">MBO</button>
+    </div>
+
+    <div id="gantt-view">
     <div id="kpi-strip">
       <div class="kpi-card" id="kpi-card-all" onclick="setKpiFilter('all')">
         <div class="kpi-label">Progetti Totali</div>
@@ -313,6 +389,19 @@ body{background:var(--bg);color:var(--text);font-family:"DM Sans",sans-serif;fon
         </div>
       </div>
     </div>
+    </div><!-- /#gantt-view -->
+
+    <div id="mbo-view">
+      <div class="mbo-toolbar">
+        <span class="filter-label">Anno</span>
+        <select id="mbo-year-filter" onchange="renderMBO()"></select>
+        <span class="filter-label">Persona</span>
+        <select id="mbo-person-filter" onchange="renderMBO()"><option value="all">Tutte</option></select>
+      </div>
+      <div id="mbo-list">
+        <div class="loading-state"><div class="loading-spinner"></div>Caricamento MBO...</div>
+      </div>
+    </div><!-- /#mbo-view -->
   </main>
 </div>
 
@@ -331,6 +420,10 @@ let activeAreaFilter='all', activeStatusFilter='all', activeKpiFilter='all';
 let expandedAreas={}, expandedProjects={};
 let currentZoom='full';
 let currentModalProjectId=null;
+let currentView='gantt';
+let mboPeople=[], mboCards=[], mboObjectives=[], mboSubs=[];
+let mboLoaded=false;
+let mboExpandedObj={};
 
 const PROGRAM_START=new Date('2025-01-01');
 const PROGRAM_END=new Date('2028-12-31');
@@ -362,6 +455,7 @@ async function initApp(user){
   document.getElementById('user-avatar').textContent=name.charAt(0).toUpperCase();
   const rb=document.getElementById('role-badge');
   rb.textContent=currentRole;rb.className='role-badge role-'+currentRole;
+  document.getElementById('tab-mbo').style.display = currentRole==='admin' ? '' : 'none';
   document.getElementById('login-screen').style.display='none';
   document.getElementById('app').style.display='flex';
   updateDateIndicator();
@@ -818,6 +912,255 @@ function startKeepAlive() {
   setInterval(pingSupabase, 12 * 60 * 60 * 1000);
 }
   
+// ── VIEW SWITCH ───────────────────────────────────────────────
+function switchView(v){
+  currentView=v;
+  document.getElementById('tab-gantt').classList.toggle('active',v==='gantt');
+  document.getElementById('tab-mbo').classList.toggle('active',v==='mbo');
+  document.getElementById('gantt-view').style.display = v==='gantt' ? '' : 'none';
+  document.getElementById('mbo-view').style.display   = v==='mbo'   ? 'block' : 'none';
+  if(v==='gantt'){renderGantt();}
+  if(v==='mbo'){
+    if(!mboLoaded){loadMBO();}else{renderMBO();}
+  }
+}
+
+// ── MBO: LOAD ─────────────────────────────────────────────────
+async function loadMBO(){
+  if(currentRole!=='admin')return;
+  const[pe,ca,ob,su]=await Promise.all([
+    sb.from('mbo_people').select('*').order('sort_order'),
+    sb.from('mbo_cards').select('*').order('year'),
+    sb.from('mbo_objectives').select('*').order('obj_number'),
+    sb.from('mbo_subobjectives').select('*').order('sort_order'),
+  ]);
+  if(pe.error){showToast('Errore MBO: '+pe.error.message,'error');return}
+  mboPeople=pe.data||[];mboCards=ca.data||[];mboObjectives=ob.data||[];mboSubs=su.data||[];
+  mboLoaded=true;
+  // populate filters
+  const years=[...new Set(mboCards.map(c=>c.year))].sort((a,b)=>b-a);
+  const yf=document.getElementById('mbo-year-filter');
+  yf.innerHTML=years.map(y=>`<option value="${y}">${y}</option>`).join('')||'<option value="">—</option>';
+  const pf=document.getElementById('mbo-person-filter');
+  pf.innerHTML='<option value="all">Tutte</option>'+mboPeople.map(p=>`<option value="${p.id}">${escHtml(p.full_name)}</option>`).join('');
+  renderMBO();
+}
+
+// ── MBO: PAYOUT LOGIC (replica delle schede) ──────────────────
+// tier sul singolo obiettivo in base al % raggiungimento
+function mboTier(pct){
+  if(pct>=100)return 1;
+  if(pct>=75) return 0.75;
+  if(pct>=50) return 0.5;
+  return 0;
+}
+function mboTierLabel(pct){
+  if(pct>=100)return['Target','tier-100'];
+  if(pct>=75) return['Intermediate','tier-75'];
+  if(pct>=50) return['Minimum','tier-50'];
+  return['—','tier-0'];
+}
+// quota EBITDA del bonus teorico (E25/E26 nelle schede)
+function mboEbitdaFactor(card){
+  if(card.ebitda_effettivo==null||card.ebitda_target<=0)return null; // non calcolabile finché non inserito
+  const ratio=card.ebitda_effettivo/card.ebitda_target; // es. 1.05
+  if(card.payout_model==='binario'){
+    // <80%=0, 80-90%=50%, 90-100% proporzionale, >100% pieno
+    if(ratio<0.80)return 0;
+    if(ratio<=0.90)return 0.5;
+    if(ratio<=1.00)return ratio;
+    return 1;
+  } else {
+    // proporzionale: <gate=0, gate..120% proporzionale, >120% cap 120%
+    if(ratio<card.gate_pct)return 0;
+    return Math.min(ratio,1.20);
+  }
+}
+// € erogabile totale della scheda
+function mboComputeCard(card){
+  const objs=mboObjectives.filter(o=>o.card_id===card.id);
+  const f=mboEbitdaFactor(card);                 // null se EBITDA non inserito
+  const factor=(f==null)?1:f;                    // per anteprima "al lordo gate" usiamo 1
+  const theoretical=card.target_bonus*factor;    // bonus teorico erogabile (post-EBITDA)
+  let total=0;
+  const rows=objs.map(o=>{
+    const eur=theoretical*Number(o.weight)*mboTier(o.achievement_pct||0);
+    total+=eur;
+    return {obj:o,eur};
+  });
+  return {objs,factor:f,theoretical,total,rows};
+}
+
+// ── MBO: RENDER ───────────────────────────────────────────────
+function renderMBO(){
+  if(currentRole!=='admin')return;
+  const yearSel=document.getElementById('mbo-year-filter').value;
+  const personSel=document.getElementById('mbo-person-filter').value;
+  const list=document.getElementById('mbo-list');
+  let cards=mboCards.filter(c=>String(c.year)===String(yearSel));
+  if(personSel!=='all')cards=cards.filter(c=>String(c.person_id)===String(personSel));
+  cards.sort((a,b)=>{
+    const pa=mboPeople.find(p=>p.id===a.person_id)?.sort_order||0;
+    const pb=mboPeople.find(p=>p.id===b.person_id)?.sort_order||0;
+    return pa-pb;
+  });
+  if(cards.length===0){list.innerHTML='<div class="mbo-empty">Nessun MBO per i filtri selezionati.</div>';return}
+  list.innerHTML=cards.map(renderMBOCard).join('');
+}
+
+function renderMBOCard(card){
+  const person=mboPeople.find(p=>p.id===card.person_id);
+  const name=person?person.full_name:'—';
+  const initial=name.charAt(0).toUpperCase();
+  const comp=mboComputeCard(card);
+  const fmtEur=v=>'€ '+Math.round(v).toLocaleString('it-IT');
+
+  // gate status
+  let gateStatus='', gateCls='';
+  if(card.ebitda_effettivo==null){
+    gateStatus='Inserisci l\'EBITDA effettivo per calcolare il bonus.';gateCls='warn';
+  } else {
+    const ratio=card.ebitda_target>0?card.ebitda_effettivo/card.ebitda_target:0;
+    const pctTxt=(ratio*100).toFixed(1)+'%';
+    if(comp.factor===0){gateStatus=`EBITDA ${pctTxt} del target — sotto il gate: nessun incentivo erogabile.`;gateCls='fail';}
+    else if(card.payout_model==='binario'&&ratio<=0.90){gateStatus=`EBITDA ${pctTxt} (fascia 80-90%): bonus teorico ridotto al 50%.`;gateCls='warn';}
+    else {gateStatus=`EBITDA ${pctTxt} del target — gate superato. Fattore applicato: ${(comp.factor*100).toFixed(0)}%.`;gateCls='pass';}
+  }
+
+  const bonusCls = comp.factor===0?'zero':(card.ebitda_effettivo!=null?'ok':'');
+  const bonusVal = card.ebitda_effettivo==null ? '—' : fmtEur(comp.total);
+
+  const objsHtml=comp.rows.map(r=>renderMBOObjective(r.obj,r.eur,card)).join('');
+
+  const gateRO = card.payout_model==='binario'
+    ? `< 80% = 0 · 80-90% = 50% · 90-100% prop. · > 100% pieno`
+    : `< gate = 0 · gate-120% proporzionale · cap 120%`;
+
+  return `
+  <div class="mbo-card" data-card="${card.id}">
+    <div class="mbo-card-head">
+      <div class="mbo-avatar">${initial}</div>
+      <div class="mbo-who">
+        <div class="mbo-name">${escHtml(name)}</div>
+        <div class="mbo-rolelbl">${escHtml(person?.role_label||'')} · ${card.year} · modello ${card.payout_model}</div>
+      </div>
+      <div class="mbo-bonus-box">
+        <div class="lbl">Bonus stimato</div>
+        <div class="val ${bonusCls}">${bonusVal}</div>
+        <div class="sub">target ${fmtEur(card.target_bonus)}</div>
+      </div>
+    </div>
+    <div class="mbo-gate">
+      <div class="field">
+        <label>EBITDA target (€)</label>
+        <input type="number" value="${card.ebitda_target}" onchange="updateCardField(${card.id},'ebitda_target',this.value)" />
+      </div>
+      <div class="field">
+        <label>EBITDA effettivo (€)</label>
+        <input type="number" value="${card.ebitda_effettivo==null?'':card.ebitda_effettivo}" placeholder="non inserito" onchange="updateCardField(${card.id},'ebitda_effettivo',this.value)" />
+      </div>
+      <div class="field">
+        <label>Gate minimo (%)</label>
+        <input type="number" step="1" value="${Math.round(card.gate_pct*100)}" onchange="updateCardField(${card.id},'gate_pct',this.value/100)" />
+      </div>
+      <div class="field">
+        <label>Bonus target (€)</label>
+        <input type="number" value="${card.target_bonus}" onchange="updateCardField(${card.id},'target_bonus',this.value)" />
+      </div>
+      <div class="field">
+        <label>Regola erogazione</label>
+        <div class="ro" style="font-size:11px">${gateRO}</div>
+      </div>
+      <div class="mbo-gate-status ${gateCls}">${gateStatus}</div>
+    </div>
+    <div class="mbo-objs">
+      ${objsHtml||'<div style="font-size:12px;color:var(--text3);padding:8px 0">Nessun obiettivo.</div>'}
+    </div>
+  </div>`;
+}
+
+function renderMBOObjective(obj,eur,card){
+  const pct=obj.achievement_pct||0;
+  const[tierLbl,tierCls]=mboTierLabel(pct);
+  const barColor=pct>=100?'var(--green)':pct>=75?'var(--blue)':pct>=50?'var(--yellow)':'var(--border2)';
+  const fmtEur=v=>'€ '+Math.round(v).toLocaleString('it-IT');
+  const subs=mboSubs.filter(s=>s.objective_id===obj.id);
+  const open=mboExpandedObj[obj.id];
+  const linkedProj=obj.project_id?allProjects.find(p=>p.id===obj.project_id):null;
+
+  const subsHtml=subs.map(s=>{
+    const subPct=s.target_value>0?Math.min(999,Math.round(s.current_value/s.target_value*100)):0;
+    const isDone=s.unit==='fatto';
+    const valField=isDone
+      ? `<select onchange="updateSubField(${s.id},'current_value',this.value); updateSubField(${s.id},'done',this.value==1)" style="font-size:11px;padding:3px 5px;border:1px solid var(--border2);border-radius:4px">
+           <option value="0" ${Number(s.current_value)?'':'selected'}>Da fare</option>
+           <option value="1" ${Number(s.current_value)?'selected':''}>Fatto</option>
+         </select>`
+      : `<input type="number" value="${s.current_value}" onchange="updateSubField(${s.id},'current_value',this.value)" />
+         <span class="tg">/ ${s.target_value}${s.unit?' '+escHtml(s.unit):''}</span>`;
+    return `
+      <div class="mbo-sub-item">
+        <div class="nm">${escHtml(s.title)}${!isDone?` <span style="color:var(--text3)">(${subPct}%)</span>`:''}</div>
+        <div class="vals">${valField}</div>
+        <div class="dd">${formatDate(s.due_date)}</div>
+      </div>`;
+  }).join('');
+
+  return `
+  <div class="mbo-obj">
+    <div class="mbo-obj-head" onclick="toggleMboObj(${obj.id})">
+      <div class="mbo-obj-num">${obj.obj_number}</div>
+      <div class="mbo-obj-title">${escHtml(obj.title)}${linkedProj?` <a class="lnk" href="#" onclick="event.stopPropagation();goToProject(${linkedProj.id})" style="font-size:11px;color:var(--accent)">↗ progetto</a>`:''}</div>
+      <div class="mbo-obj-weight">peso ${Math.round(obj.weight*100)}%</div>
+      <span class="tier ${tierCls}">${tierLbl}</span>
+      <div class="mbo-obj-eur">${card.ebitda_effettivo==null?'—':fmtEur(eur)}</div>
+    </div>
+    <div class="mbo-obj-prog">
+      <span style="font-size:11px;color:var(--text3)">Raggiung.</span>
+      <input class="pctin" type="number" min="0" value="${pct}" onchange="updateObjPct(${obj.id},this.value)" />
+      <span style="font-size:11px;color:var(--text3)">%</span>
+      <div class="bar"><div style="width:${Math.min(100,pct)}%;background:${barColor}"></div></div>
+    </div>
+    <div class="mbo-sub ${open?'open':''}" id="mbo-sub-${obj.id}">
+      ${subs.length?subsHtml:'<div style="font-size:11px;color:var(--text3);padding:6px 0">Nessun sotto-obiettivo.</div>'}
+    </div>
+  </div>`;
+}
+
+function toggleMboObj(id){mboExpandedObj[id]=!mboExpandedObj[id];const el=document.getElementById('mbo-sub-'+id);if(el)el.classList.toggle('open',mboExpandedObj[id]);}
+
+function goToProject(projectId){
+  switchView('gantt');
+  // assicura che il progetto sia visibile e aprilo
+  setTimeout(()=>openProjectModal(projectId),120);
+}
+
+// ── MBO: SAVE (live) ──────────────────────────────────────────
+async function updateCardField(cardId,field,value){
+  if(currentRole!=='admin')return;
+  let val=value===''?null:Number(value);
+  const{error}=await sb.from('mbo_cards').update({[field]:val,updated_at:new Date().toISOString()}).eq('id',cardId);
+  if(error){showToast('Errore: '+error.message,'error');return}
+  const c=mboCards.find(x=>x.id===cardId);if(c)c[field]=val;
+  renderMBO();
+}
+async function updateObjPct(objId,value){
+  if(currentRole!=='admin')return;
+  const val=Number(value)||0;
+  const{error}=await sb.from('mbo_objectives').update({achievement_pct:val}).eq('id',objId);
+  if(error){showToast('Errore: '+error.message,'error');return}
+  const o=mboObjectives.find(x=>x.id===objId);if(o)o.achievement_pct=val;
+  renderMBO();
+}
+async function updateSubField(subId,field,value){
+  if(currentRole!=='admin')return;
+  let val=(field==='done')?(value===true||value==='true'):Number(value);
+  const{error}=await sb.from('mbo_subobjectives').update({[field]:val}).eq('id',subId);
+  if(error){showToast('Errore: '+error.message,'error');return}
+  const s=mboSubs.find(x=>x.id===subId);if(s)s[field]=val;
+  // non rerender completo per non perdere focus su altri input; aggiorna solo se done-toggle
+}
+
 // ── UTILS ─────────────────────────────────────────────────────
 function escHtml(str){return String(str||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
 function formatDate(d){
