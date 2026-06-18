@@ -141,10 +141,10 @@ body{background:var(--bg);color:var(--text);font-family:"DM Sans",sans-serif;fon
 .gantt-bar:hover{filter:brightness(.88);box-shadow:0 2px 8px rgba(0,0,0,.25);z-index:10}
 .gantt-bar-progress{height:100%;position:absolute;left:0;top:0;border-radius:4px 0 0 4px;background:rgba(0,0,0,.18)}
 .gantt-bar-label{position:relative;z-index:1;font-size:10px;font-weight:700;padding:0 6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;pointer-events:none;color:white;text-shadow:0 1px 3px rgba(0,0,0,.5)}
-.gantt-milestone{position:absolute;width:10px;height:10px;transform:rotate(45deg) translateX(-50%);z-index:8;cursor:pointer;transition:transform .15s}
-.gantt-milestone:hover{transform:rotate(45deg) translateX(-50%) scale(1.5)}
-.milestone-done{background:var(--green)}
-.milestone-pending{background:var(--accent)}
+.gantt-milestone{position:absolute;width:12px;height:12px;transform:rotate(45deg) translateX(-50%);z-index:8;cursor:pointer;transition:transform .15s;border:1.5px solid #1a1a1a;box-shadow:0 0 0 1.5px rgba(255,255,255,.9),0 1px 3px rgba(0,0,0,.5)}
+.gantt-milestone:hover{transform:rotate(45deg) translateX(-50%) scale(1.6)}
+.milestone-done{background:#39FF14}
+.milestone-pending{background:#FFF312}
 
 /* TOOLTIP */
 #gantt-tooltip{position:fixed;z-index:1000;background:white;border:1px solid var(--border2);border-radius:var(--radius2);padding:14px 16px;max-width:300px;pointer-events:none;display:none;box-shadow:var(--shadow2);font-size:12px}
@@ -669,7 +669,7 @@ function renderGantt(){
           </div>
           ${milestones.map(mi=>{
             const mx=dateToX(new Date(mi.due_date));
-            return `<div class="gantt-milestone ${mi.completed?'milestone-done':'milestone-pending'}" style="left:${mx}px;top:50%;margin-top:-5px" title="${escHtml(mi.title)} - ${formatDate(mi.due_date)}"></div>`;
+            return `<div class="gantt-milestone ${mi.completed?'milestone-done':'milestone-pending'}" style="left:${mx}px;top:50%;margin-top:-6px" title="${escHtml(mi.title)} - ${formatDate(mi.due_date)}"></div>`;
           }).join('')}
         </div>
       </div>`;
