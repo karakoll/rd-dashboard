@@ -213,10 +213,10 @@ body{background:var(--bg);color:var(--text);font-family:"DM Sans",sans-serif;fon
 .mbo-gate input,.mbo-gate .ro{width:100%;padding:7px 10px;border:1px solid var(--border2);border-radius:var(--radius);font-family:inherit;font-size:13px;color:var(--text);outline:none;background:white}
 .mbo-gate input:focus{border-color:var(--accent)}
 .mbo-gate .ro{background:var(--bg3);color:var(--text2)}
-.mbo-gate-status{grid-column:1/-1;font-size:12px;padding:8px 10px;border-radius:var(--radius);font-weight:600}
-.mbo-gate-status.pass{background:rgba(30,126,74,.12);color:var(--green)}
-.mbo-gate-status.warn{background:rgba(176,125,0,.14);color:var(--yellow)}
-.mbo-gate-status.fail{background:rgba(192,57,43,.12);color:var(--red)}
+.mbo-gate-status{grid-column:1/-1;font-size:12px;padding:9px 12px;border-radius:var(--radius);font-weight:600;border-left:3px solid transparent}
+.mbo-gate-status.pass{background:rgba(30,126,74,.12);color:#155F38;border-left-color:var(--green)}
+.mbo-gate-status.warn{background:rgba(176,125,0,.18);color:#7A5600;border-left-color:#B07D00}
+.mbo-gate-status.fail{background:rgba(192,57,43,.12);color:#9C2B20;border-left-color:var(--red)}
 .mbo-objs{padding:8px 20px 16px}
 .mbo-obj{border:1px solid var(--border);border-radius:var(--radius);margin-top:12px;background:white;overflow:hidden}
 .mbo-obj-head{display:flex;align-items:center;gap:10px;padding:11px 14px;cursor:pointer;user-select:none}
@@ -230,11 +230,26 @@ body{background:var(--bg);color:var(--text);font-family:"DM Sans",sans-serif;fon
 .mbo-obj-prog .bar > div{height:100%;border-radius:4px;transition:width .4s}
 .mbo-obj-prog .pctin{width:64px;padding:4px 6px;border:1px solid var(--border2);border-radius:var(--radius);font-size:12px;font-family:inherit;text-align:right;outline:none}
 .mbo-obj-prog .pctin:focus{border-color:var(--accent)}
+.mbo-obj-prog .pctin.auto{background:var(--bg);color:var(--text3)}
 .mbo-obj-prog .tier{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:2px 7px;border-radius:10px;flex-shrink:0}
+.mbo-auto-badge{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--text4);cursor:pointer;border:1px solid var(--border2);border-radius:8px;padding:1px 6px;background:var(--bg)}
+.mbo-auto-badge:hover{border-color:var(--accent);color:var(--accent)}
+.mbo-auto-badge.man{color:var(--accent);border-color:var(--accent)}
+/* timeline avanzamento vs tempo */
+.mbo-timeline{padding:0 14px 12px}
+.mbo-timeline .tl-bar{position:relative;height:14px;background:var(--border);border-radius:7px;overflow:visible}
+.mbo-timeline .tl-fill{position:absolute;left:0;top:0;height:100%;border-radius:7px;transition:width .5s}
+.mbo-timeline .tl-today{position:absolute;top:-3px;width:2px;height:20px;background:var(--text);border-radius:1px}
+.mbo-timeline .tl-today::after{content:'oggi';position:absolute;top:-13px;left:50%;transform:translateX(-50%);font-size:8px;font-weight:700;color:var(--text2);white-space:nowrap}
+.mbo-timeline .tl-legend{display:flex;justify-content:space-between;align-items:center;margin-top:5px;font-size:10px;color:var(--text3)}
+.mbo-timeline .tl-status{font-size:10px;font-weight:700;padding:1px 7px;border-radius:8px}
+.tl-ahead{background:rgba(30,126,74,.16);color:#155F38}
+.tl-ontrack{background:rgba(43,94,167,.14);color:#1A3F75}
+.tl-behind{background:rgba(192,57,43,.14);color:#9C2B20}
 .tier-0{background:var(--bg3);color:var(--text3)}
-.tier-50{background:rgba(176,125,0,.15);color:var(--yellow)}
-.tier-75{background:rgba(43,94,167,.14);color:var(--blue)}
-.tier-100{background:rgba(30,126,74,.14);color:var(--green)}
+.tier-50{background:rgba(176,125,0,.18);color:#7A5600}
+.tier-75{background:rgba(43,94,167,.16);color:#1A3F75}
+.tier-100{background:rgba(30,126,74,.16);color:#155F38}
 .mbo-sub{border-top:1px solid var(--border);padding:6px 14px 10px;display:none}
 .mbo-sub.open{display:block}
 .mbo-sub-item{display:flex;align-items:center;gap:8px;padding:6px 0;font-size:12px;border-bottom:1px dashed var(--border)}
@@ -397,6 +412,8 @@ body{background:var(--bg);color:var(--text);font-family:"DM Sans",sans-serif;fon
         <select id="mbo-year-filter" onchange="renderMBO()"></select>
         <span class="filter-label">Persona</span>
         <select id="mbo-person-filter" onchange="renderMBO()"><option value="all">Tutte</option></select>
+        <div style="flex:1"></div>
+        <button class="btn btn-ghost btn-small" onclick="openMboAddModal()">+ Aggiungi scheda MBO</button>
       </div>
       <div id="mbo-list">
         <div class="loading-state"><div class="loading-spinner"></div>Caricamento MBO...</div>
@@ -984,7 +1001,7 @@ function mboComputeCard(card){
   const theoretical=card.target_bonus*factor;    // bonus teorico erogabile (post-EBITDA)
   let total=0;
   const rows=objs.map(o=>{
-    const eur=theoretical*Number(o.weight)*mboTier(o.achievement_pct||0);
+    const eur=theoretical*Number(o.weight)*mboTier(mboObjPct(o));
     total+=eur;
     return {obj:o,eur};
   });
@@ -1079,20 +1096,50 @@ function renderMBOCard(card){
   </div>`;
 }
 
+// % automatica di un obiettivo = media dei (valore/target) dei suoi sotto-obiettivi
+function mboAutoPct(objId){
+  const subs=mboSubs.filter(s=>s.objective_id===objId);
+  if(!subs.length)return 0;
+  let sum=0;
+  subs.forEach(s=>{ const r=s.target_value>0?Math.min(1,s.current_value/s.target_value):0; sum+=r; });
+  return Math.round(sum/subs.length*100);
+}
+// % effettiva mostrata/usata: manuale se sovrascritta, altrimenti automatica
+function mboObjPct(obj){
+  return obj.manual_pct ? (obj.achievement_pct||0) : mboAutoPct(obj.id);
+}
+// timeline: posizione di "oggi" tra 1 gen dell'anno e la scadenza piu lontana dei sotto-obiettivi
+function mboTimeline(obj,year){
+  const subs=mboSubs.filter(s=>s.objective_id===obj.id&&s.due_date);
+  if(!subs.length)return null;
+  const start=new Date(year+'-01-01');
+  let end=start;
+  subs.forEach(s=>{const d=new Date(s.due_date); if(d>end)end=d;});
+  if(end<=start)return null;
+  const now=new Date();
+  let todayPct=(now-start)/(end-start)*100;
+  todayPct=Math.max(0,Math.min(100,todayPct));
+  return {todayPct,endDate:end};
+}
+
 function renderMBOObjective(obj,eur,card){
-  const pct=obj.achievement_pct||0;
+  const pct=mboObjPct(obj);
+  const isManual=!!obj.manual_pct;
   const[tierLbl,tierCls]=mboTierLabel(pct);
-  const barColor=pct>=100?'var(--green)':pct>=75?'var(--blue)':pct>=50?'var(--yellow)':'var(--border2)';
   const fmtEur=v=>'€ '+Math.round(v).toLocaleString('it-IT');
   const subs=mboSubs.filter(s=>s.objective_id===obj.id);
   const open=mboExpandedObj[obj.id];
   const linkedProj=obj.project_id?allProjects.find(p=>p.id===obj.project_id):null;
 
+  // dropdown progetti (collegamento da dashboard)
+  const projOptions='<option value="">— nessun progetto —</option>'+
+    allProjects.map(p=>`<option value="${p.id}" ${obj.project_id===p.id?'selected':''}>${escHtml(p.title)}</option>`).join('');
+
   const subsHtml=subs.map(s=>{
     const subPct=s.target_value>0?Math.min(999,Math.round(s.current_value/s.target_value*100)):0;
     const isDone=s.unit==='fatto';
     const valField=isDone
-      ? `<select onchange="updateSubField(${s.id},'current_value',this.value); updateSubField(${s.id},'done',this.value==1)" style="font-size:11px;padding:3px 5px;border:1px solid var(--border2);border-radius:4px">
+      ? `<select onchange="updateSubField(${s.id},'current_value',this.value)" style="font-size:11px;padding:3px 5px;border:1px solid var(--border2);border-radius:4px">
            <option value="0" ${Number(s.current_value)?'':'selected'}>Da fare</option>
            <option value="1" ${Number(s.current_value)?'selected':''}>Fatto</option>
          </select>`
@@ -1106,23 +1153,59 @@ function renderMBOObjective(obj,eur,card){
       </div>`;
   }).join('');
 
+  // timeline avanzamento vs tempo
+  const tl=mboTimeline(obj,card.year);
+  let timelineHtml='';
+  if(tl){
+    const delta=pct-tl.todayPct;
+    let stCls,stTxt;
+    if(delta>=5){stCls='tl-ahead';stTxt='In anticipo';}
+    else if(delta<=-5){stCls='tl-behind';stTxt='In ritardo';}
+    else{stCls='tl-ontrack';stTxt='In linea';}
+    const fillColor=delta>=5?'var(--green)':delta<=-5?'var(--red)':'var(--blue)';
+    timelineHtml=`
+      <div class="mbo-timeline">
+        <div class="tl-bar">
+          <div class="tl-fill" style="width:${Math.min(100,pct)}%;background:${fillColor}"></div>
+          <div class="tl-today" style="left:${tl.todayPct}%"></div>
+        </div>
+        <div class="tl-legend">
+          <span>1 gen ${card.year}</span>
+          <span class="tl-status ${stCls}">${stTxt} · ${pct}% vs ${Math.round(tl.todayPct)}% atteso</span>
+          <span>scad. ${formatDate(tl.endDate)}</span>
+        </div>
+      </div>`;
+  }
+
   return `
   <div class="mbo-obj">
     <div class="mbo-obj-head" onclick="toggleMboObj(${obj.id})">
       <div class="mbo-obj-num">${obj.obj_number}</div>
-      <div class="mbo-obj-title">${escHtml(obj.title)}${linkedProj?` <a class="lnk" href="#" onclick="event.stopPropagation();goToProject(${linkedProj.id})" style="font-size:11px;color:var(--accent)">↗ progetto</a>`:''}</div>
+      <div class="mbo-obj-title">${escHtml(obj.title)}${linkedProj?` <a class="lnk" href="#" onclick="event.stopPropagation();goToProject(${linkedProj.id})" style="font-size:11px;color:var(--accent)">↗ ${escHtml(linkedProj.title)}</a>`:''}</div>
       <div class="mbo-obj-weight">peso ${Math.round(obj.weight*100)}%</div>
       <span class="tier ${tierCls}">${tierLbl}</span>
       <div class="mbo-obj-eur">${card.ebitda_effettivo==null?'—':fmtEur(eur)}</div>
     </div>
     <div class="mbo-obj-prog">
       <span style="font-size:11px;color:var(--text3)">Raggiung.</span>
-      <input class="pctin" type="number" min="0" value="${pct}" onchange="updateObjPct(${obj.id},this.value)" />
+      <input class="pctin ${isManual?'':'auto'}" type="number" min="0" value="${pct}" onchange="updateObjPct(${obj.id},this.value)" title="${isManual?'Valore manuale':'Calcolato dai sotto-obiettivi'}" />
       <span style="font-size:11px;color:var(--text3)">%</span>
-      <div class="bar"><div style="width:${Math.min(100,pct)}%;background:${barColor}"></div></div>
+      <span class="mbo-auto-badge ${isManual?'man':''}" onclick="event.stopPropagation();toggleObjManual(${obj.id})" title="${isManual?'Torna al calcolo automatico':'Blocca su valore manuale'}">${isManual?'manuale':'auto'}</span>
     </div>
+    ${timelineHtml}
     <div class="mbo-sub ${open?'open':''}" id="mbo-sub-${obj.id}">
+      <div style="display:flex;align-items:center;gap:8px;margin:4px 0 8px;font-size:11px">
+        <span style="color:var(--text3)">Progetto collegato:</span>
+        <select onchange="linkObjProject(${obj.id},this.value)" onclick="event.stopPropagation()" style="flex:1;font-size:11px;padding:4px 6px;border:1px solid var(--border2);border-radius:4px;font-family:inherit">${projOptions}</select>
+      </div>
       ${subs.length?subsHtml:'<div style="font-size:11px;color:var(--text3);padding:6px 0">Nessun sotto-obiettivo.</div>'}
+      <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap" onclick="event.stopPropagation()">
+        <input type="text" id="newsub-t-${obj.id}" placeholder="Sotto-obiettivo..." style="flex:2;min-width:140px;font-size:11px;padding:5px 7px;border:1px solid var(--border2);border-radius:4px;font-family:inherit" />
+        <input type="number" id="newsub-tg-${obj.id}" placeholder="target" style="width:64px;font-size:11px;padding:5px 7px;border:1px solid var(--border2);border-radius:4px;font-family:inherit" />
+        <input type="text" id="newsub-u-${obj.id}" placeholder="unità" style="width:64px;font-size:11px;padding:5px 7px;border:1px solid var(--border2);border-radius:4px;font-family:inherit" />
+        <input type="date" id="newsub-d-${obj.id}" style="font-size:11px;padding:4px 6px;border:1px solid var(--border2);border-radius:4px;font-family:inherit" />
+        <button class="btn btn-primary" style="width:auto;padding:5px 12px;font-size:11px" onclick="addSubObjective(${obj.id})">+ Aggiungi</button>
+      </div>
     </div>
   </div>`;
 }
@@ -1131,7 +1214,6 @@ function toggleMboObj(id){mboExpandedObj[id]=!mboExpandedObj[id];const el=docume
 
 function goToProject(projectId){
   switchView('gantt');
-  // assicura che il progetto sia visibile e aprilo
   setTimeout(()=>openProjectModal(projectId),120);
 }
 
@@ -1144,21 +1226,200 @@ async function updateCardField(cardId,field,value){
   const c=mboCards.find(x=>x.id===cardId);if(c)c[field]=val;
   renderMBO();
 }
+// scrivere a mano la % => passa in modalita manuale
 async function updateObjPct(objId,value){
   if(currentRole!=='admin')return;
   const val=Number(value)||0;
-  const{error}=await sb.from('mbo_objectives').update({achievement_pct:val}).eq('id',objId);
+  const{error}=await sb.from('mbo_objectives').update({achievement_pct:val,manual_pct:true}).eq('id',objId);
   if(error){showToast('Errore: '+error.message,'error');return}
-  const o=mboObjectives.find(x=>x.id===objId);if(o)o.achievement_pct=val;
+  const o=mboObjectives.find(x=>x.id===objId);if(o){o.achievement_pct=val;o.manual_pct=true;}
   renderMBO();
 }
+// toggle auto/manuale
+async function toggleObjManual(objId){
+  if(currentRole!=='admin')return;
+  const o=mboObjectives.find(x=>x.id===objId);if(!o)return;
+  const newManual=!o.manual_pct;
+  // se torno in auto, salvo anche il valore calcolato come riferimento
+  const autoVal=mboAutoPct(objId);
+  const payload=newManual?{manual_pct:true}:{manual_pct:false,achievement_pct:autoVal};
+  const{error}=await sb.from('mbo_objectives').update(payload).eq('id',objId);
+  if(error){showToast('Errore: '+error.message,'error');return}
+  o.manual_pct=newManual;if(!newManual)o.achievement_pct=autoVal;
+  renderMBO();
+  showToast(newManual?'% in modalita manuale':'% in calcolo automatico','success');
+}
+// collegamento obiettivo -> progetto dal menu a tendina
+async function linkObjProject(objId,projectIdStr){
+  if(currentRole!=='admin')return;
+  const projectId=projectIdStr===''?null:Number(projectIdStr);
+  const{error}=await sb.from('mbo_objectives').update({project_id:projectId}).eq('id',objId);
+  if(error){showToast('Errore: '+error.message,'error');return}
+  const o=mboObjectives.find(x=>x.id===objId);if(o)o.project_id=projectId;
+  renderMBO();
+  showToast(projectId?'Progetto collegato':'Collegamento rimosso','success');
+}
+// sotto-obiettivo: salva valore; se l'obiettivo e in auto, ricalcola e salva la % e il €
 async function updateSubField(subId,field,value){
   if(currentRole!=='admin')return;
   let val=(field==='done')?(value===true||value==='true'):Number(value);
-  const{error}=await sb.from('mbo_subobjectives').update({[field]:val}).eq('id',subId);
+  const patch={[field]:val};
+  if(field==='current_value'){ const s0=mboSubs.find(x=>x.id===subId); patch.done = (s0 && s0.target_value>0) ? (val>=s0.target_value) : !!val; }
+  const{error}=await sb.from('mbo_subobjectives').update(patch).eq('id',subId);
   if(error){showToast('Errore: '+error.message,'error');return}
-  const s=mboSubs.find(x=>x.id===subId);if(s)s[field]=val;
-  // non rerender completo per non perdere focus su altri input; aggiorna solo se done-toggle
+  const s=mboSubs.find(x=>x.id===subId);if(s){s[field]=val;if('done'in patch)s.done=patch.done;}
+  // se l'obiettivo padre e in modalita auto, aggiorna la sua % salvata e rerender (cosi il € si aggiorna)
+  if(s){
+    const o=mboObjectives.find(x=>x.id===s.objective_id);
+    if(o&&!o.manual_pct){
+      const auto=mboAutoPct(o.id);
+      o.achievement_pct=auto;
+      sb.from('mbo_objectives').update({achievement_pct:auto}).eq('id',o.id);
+      renderMBO();
+    }
+  }
+}
+
+// aggiungi sotto-obiettivo dal dettaglio dell'obiettivo
+async function addSubObjective(objId){
+  if(currentRole!=='admin')return;
+  const title=(document.getElementById('newsub-t-'+objId).value||'').trim();
+  const target=Number(document.getElementById('newsub-tg-'+objId).value)||0;
+  const unit=(document.getElementById('newsub-u-'+objId).value||'').trim();
+  const due=document.getElementById('newsub-d-'+objId).value||null;
+  if(!title){showToast('Inserisci il titolo del sotto-obiettivo','error');return}
+  const maxSort=mboSubs.filter(s=>s.objective_id===objId).reduce((m,s)=>Math.max(m,s.sort_order||0),0);
+  const{data,error}=await sb.from('mbo_subobjectives').insert({
+    objective_id:objId,title,current_value:0,target_value:target,unit:unit||null,due_date:due,sort_order:maxSort+1
+  }).select().single();
+  if(error){showToast('Errore: '+error.message,'error');return}
+  mboSubs.push(data);
+  mboExpandedObj[objId]=true;
+  // se obiettivo in auto, ricalcola
+  const o=mboObjectives.find(x=>x.id===objId);
+  if(o&&!o.manual_pct){const auto=mboAutoPct(objId);o.achievement_pct=auto;sb.from('mbo_objectives').update({achievement_pct:auto}).eq('id',objId);}
+  renderMBO();
+  showToast('Sotto-obiettivo aggiunto','success');
+}
+
+// ── MBO: AGGIUNGI SCHEDA (persona + card + 3 obiettivi) ───────
+function openMboAddModal(){
+  if(currentRole!=='admin')return;
+  const peopleOpts=mboPeople.map(p=>`<option value="${p.id}">${escHtml(p.full_name)}</option>`).join('');
+  const yearNow=new Date().getFullYear();
+  document.getElementById('modal-content').innerHTML=`
+    <div class="modal-header">
+      <h2>Aggiungi scheda MBO</h2>
+      <button class="modal-close" onclick="closeModal()">&#x2715;</button>
+    </div>
+    <div class="modal-section-title" style="margin-top:0;border-top:none;padding-top:0">Persona</div>
+    <div class="form-group">
+      <label>Seleziona persona esistente</label>
+      <select id="mbo-add-person">
+        <option value="">— nuova persona —</option>
+        ${peopleOpts}
+      </select>
+    </div>
+    <div id="mbo-new-person-fields" style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div class="form-group"><label>Nome e cognome</label><input type="text" id="mbo-add-name" placeholder="Mario Rossi" /></div>
+      <div class="form-group"><label>Ruolo</label><input type="text" id="mbo-add-role" placeholder="Impiegato / Dirigente" /></div>
+    </div>
+    <div class="modal-section-title">Scheda</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div class="form-group"><label>Anno</label><input type="number" id="mbo-add-year" value="${yearNow}" /></div>
+      <div class="form-group"><label>Modello erogazione</label>
+        <select id="mbo-add-model">
+          <option value="proporzionale">Proporzionale (dirigente)</option>
+          <option value="binario">Binario (impiegato)</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Bonus target (€)</label><input type="number" id="mbo-add-bonus" value="4000" /></div>
+      <div class="form-group"><label>EBITDA target (€)</label><input type="number" id="mbo-add-ebitda" value="2300000" /></div>
+      <div class="form-group"><label>Gate minimo (%)</label><input type="number" id="mbo-add-gate" value="80" /></div>
+    </div>
+    <div class="modal-section-title">Obiettivi (pesi modificabili dopo)</div>
+    <div class="form-group"><label>Obiettivo 1 (peso 40%)</label><input type="text" id="mbo-add-o1" placeholder="Titolo obiettivo 1" /></div>
+    <div class="form-group"><label>Obiettivo 2 (peso 30%)</label><input type="text" id="mbo-add-o2" placeholder="Titolo obiettivo 2" /></div>
+    <div class="form-group"><label>Obiettivo 3 (peso 30%)</label><input type="text" id="mbo-add-o3" placeholder="Titolo obiettivo 3" /></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal()">Annulla</button>
+      <button class="btn btn-primary" onclick="saveMboCard()" style="width:auto;padding:9px 20px">Crea scheda</button>
+    </div>`;
+  document.getElementById('modal-overlay').classList.add('open');
+  // mostra/nasconde i campi nuova persona
+  const sel=document.getElementById('mbo-add-person');
+  const toggle=()=>{document.getElementById('mbo-new-person-fields').style.display=sel.value===''?'grid':'none';};
+  sel.addEventListener('change',toggle);toggle();
+  // preset valori in base al modello
+  document.getElementById('mbo-add-model').addEventListener('change',e=>{
+    if(e.target.value==='proporzionale'){
+      document.getElementById('mbo-add-bonus').value=6500;
+      document.getElementById('mbo-add-ebitda').value=2200000;
+      document.getElementById('mbo-add-gate').value=90;
+    } else {
+      document.getElementById('mbo-add-bonus').value=4000;
+      document.getElementById('mbo-add-ebitda').value=2300000;
+      document.getElementById('mbo-add-gate').value=80;
+    }
+  });
+}
+
+async function saveMboCard(){
+  if(currentRole!=='admin')return;
+  const personSel=document.getElementById('mbo-add-person').value;
+  let personId=personSel?Number(personSel):null;
+
+  // crea nuova persona se necessario
+  if(!personId){
+    const name=document.getElementById('mbo-add-name').value.trim();
+    const role=document.getElementById('mbo-add-role').value.trim();
+    if(!name){showToast('Inserisci il nome della persona','error');return}
+    const maxSort=mboPeople.reduce((m,p)=>Math.max(m,p.sort_order||0),0);
+    const{data,error}=await sb.from('mbo_people').insert({full_name:name,role_label:role,sort_order:maxSort+1}).select().single();
+    if(error){showToast('Errore: '+error.message,'error');return}
+    mboPeople.push(data);personId=data.id;
+  }
+
+  const year=parseInt(document.getElementById('mbo-add-year').value)||new Date().getFullYear();
+  const model=document.getElementById('mbo-add-model').value;
+  const bonus=Number(document.getElementById('mbo-add-bonus').value)||0;
+  const ebitda=Number(document.getElementById('mbo-add-ebitda').value)||0;
+  const gate=(Number(document.getElementById('mbo-add-gate').value)||0)/100;
+
+  // evita duplicati persona/anno
+  if(mboCards.some(c=>c.person_id===personId&&c.year===year)){
+    showToast('Esiste già una scheda per questa persona e anno','error');return;
+  }
+
+  const{data:card,error:cErr}=await sb.from('mbo_cards').insert({
+    person_id:personId,year,target_bonus:bonus,ebitda_target:ebitda,gate_pct:gate,payout_model:model
+  }).select().single();
+  if(cErr){showToast('Errore: '+cErr.message,'error');return}
+  mboCards.push(card);
+
+  // 3 obiettivi 40/30/30
+  const titles=[
+    document.getElementById('mbo-add-o1').value.trim()||'Obiettivo 1',
+    document.getElementById('mbo-add-o2').value.trim()||'Obiettivo 2',
+    document.getElementById('mbo-add-o3').value.trim()||'Obiettivo 3',
+  ];
+  const objRows=[
+    {card_id:card.id,obj_number:1,title:titles[0],weight:0.40,sort_order:1},
+    {card_id:card.id,obj_number:2,title:titles[1],weight:0.30,sort_order:2},
+    {card_id:card.id,obj_number:3,title:titles[2],weight:0.30,sort_order:3},
+  ];
+  const{data:objs,error:oErr}=await sb.from('mbo_objectives').insert(objRows).select();
+  if(oErr){showToast('Scheda creata, errore obiettivi: '+oErr.message,'error');}
+  else{(objs||[]).forEach(o=>mboObjectives.push(o));}
+
+  // aggiorna i filtri (anno/persona) e seleziona
+  const years=[...new Set(mboCards.map(c=>c.year))].sort((a,b)=>b-a);
+  document.getElementById('mbo-year-filter').innerHTML=years.map(y=>`<option value="${y}" ${y===year?'selected':''}>${y}</option>`).join('');
+  document.getElementById('mbo-person-filter').innerHTML='<option value="all">Tutte</option>'+mboPeople.map(p=>`<option value="${p.id}">${escHtml(p.full_name)}</option>`).join('');
+
+  closeModal();
+  renderMBO();
+  showToast('Scheda MBO creata. Aggiungi i sotto-obiettivi dal dettaglio.','success');
 }
 
 // ── UTILS ─────────────────────────────────────────────────────
