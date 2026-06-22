@@ -262,6 +262,11 @@ body{background:var(--bg);color:var(--text);font-family:"DM Sans",sans-serif;fon
 .mbo-sub-item .dd{font-size:10px;color:var(--text3);flex-shrink:0;min-width:62px;text-align:right}
 .mbo-sub-item .lnk{font-size:11px;color:var(--accent);text-decoration:none;flex-shrink:0}
 .mbo-sub-item .lnk:hover{text-decoration:underline}
+.mbo-sub-btn{flex-shrink:0;background:none;border:none;cursor:pointer;font-size:12px;line-height:1;padding:3px 5px;border-radius:4px;color:var(--text3);opacity:.65;transition:opacity .15s,background .15s}
+.mbo-sub-btn:hover{opacity:1;background:var(--border)}
+.mbo-sub-btn.del:hover{color:var(--red)}
+.mbo-sub-btn.ok{color:var(--green);opacity:1}
+.mbo-sub-edit{flex-wrap:wrap}
 .mbo-obj-actions{padding:0 14px 12px;display:flex;justify-content:flex-end}
 .mbo-empty{padding:50px;text-align:center;color:var(--text3);font-size:13px}
 
@@ -441,6 +446,7 @@ let currentView='gantt';
 let mboPeople=[], mboCards=[], mboObjectives=[], mboSubs=[];
 let mboLoaded=false;
 let mboExpandedObj={};
+let mboEditingSub=null;
 
 const PROGRAM_START=new Date('2025-01-01');
 const PROGRAM_END=new Date('2028-12-31');
@@ -1138,6 +1144,18 @@ function renderMBOObjective(obj,eur,card){
   const subsHtml=subs.map(s=>{
     const subPct=s.target_value>0?Math.min(999,Math.round(s.current_value/s.target_value*100)):0;
     const isDone=s.unit==='fatto';
+    const editing=mboEditingSub===s.id;
+    if(editing){
+      return `
+      <div class="mbo-sub-item mbo-sub-edit" onclick="event.stopPropagation()">
+        <input type="text" id="edsub-t-${s.id}" value="${escHtml(s.title)}" placeholder="Sotto-obiettivo..." style="flex:2;min-width:120px;font-size:11px;padding:4px 6px;border:1px solid var(--border2);border-radius:4px;font-family:inherit" />
+        <input type="number" id="edsub-tg-${s.id}" value="${s.target_value}" placeholder="target" style="width:60px;font-size:11px;padding:4px 6px;border:1px solid var(--border2);border-radius:4px;font-family:inherit" />
+        <input type="text" id="edsub-u-${s.id}" value="${escHtml(s.unit||'')}" placeholder="unità" style="width:60px;font-size:11px;padding:4px 6px;border:1px solid var(--border2);border-radius:4px;font-family:inherit" />
+        <input type="date" id="edsub-d-${s.id}" value="${s.due_date||''}" style="font-size:11px;padding:3px 5px;border:1px solid var(--border2);border-radius:4px;font-family:inherit" />
+        <button class="mbo-sub-btn ok" onclick="saveEditSub(${s.id})" title="Salva">✓</button>
+        <button class="mbo-sub-btn" onclick="cancelEditSub()" title="Annulla">✕</button>
+      </div>`;
+    }
     const valField=isDone
       ? `<select onchange="updateSubField(${s.id},'current_value',this.value)" style="font-size:11px;padding:3px 5px;border:1px solid var(--border2);border-radius:4px">
            <option value="0" ${Number(s.current_value)?'':'selected'}>Da fare</option>
@@ -1150,6 +1168,8 @@ function renderMBOObjective(obj,eur,card){
         <div class="nm">${escHtml(s.title)}${!isDone?` <span style="color:var(--text3)">(${subPct}%)</span>`:''}</div>
         <div class="vals">${valField}</div>
         <div class="dd">${formatDate(s.due_date)}</div>
+        <button class="mbo-sub-btn" onclick="event.stopPropagation();startEditSub(${s.id})" title="Modifica">✎</button>
+        <button class="mbo-sub-btn del" onclick="event.stopPropagation();deleteSubObjective(${s.id})" title="Elimina">🗑</button>
       </div>`;
   }).join('');
 
@@ -1300,6 +1320,55 @@ async function addSubObjective(objId){
   if(o&&!o.manual_pct){const auto=mboAutoPct(objId);o.achievement_pct=auto;sb.from('mbo_objectives').update({achievement_pct:auto}).eq('id',objId);}
   renderMBO();
   showToast('Sotto-obiettivo aggiunto','success');
+}
+
+// modifica sotto-obiettivo: apri editor inline
+function startEditSub(subId){
+  if(currentRole!=='admin')return;
+  mboEditingSub=subId;
+  renderMBO();
+}
+function cancelEditSub(){
+  mboEditingSub=null;
+  renderMBO();
+}
+// salva modifiche al sotto-obiettivo (titolo, target, unità, scadenza)
+async function saveEditSub(subId){
+  if(currentRole!=='admin')return;
+  const title=(document.getElementById('edsub-t-'+subId).value||'').trim();
+  const target=Number(document.getElementById('edsub-tg-'+subId).value)||0;
+  const unit=(document.getElementById('edsub-u-'+subId).value||'').trim();
+  const due=document.getElementById('edsub-d-'+subId).value||null;
+  if(!title){showToast('Inserisci il titolo del sotto-obiettivo','error');return}
+  const s=mboSubs.find(x=>x.id===subId);if(!s)return;
+  // ricalcola done in base al nuovo target (se non è del tipo "fatto")
+  const newDone = unit==='fatto' ? !!Number(s.current_value) : (target>0 ? Number(s.current_value)>=target : !!Number(s.current_value));
+  const patch={title,target_value:target,unit:unit||null,due_date:due,done:newDone};
+  const{error}=await sb.from('mbo_subobjectives').update(patch).eq('id',subId);
+  if(error){showToast('Errore: '+error.message,'error');return}
+  Object.assign(s,patch);
+  mboEditingSub=null;
+  // se obiettivo padre in auto, ricalcola la sua %
+  const o=mboObjectives.find(x=>x.id===s.objective_id);
+  if(o&&!o.manual_pct){const auto=mboAutoPct(o.id);o.achievement_pct=auto;sb.from('mbo_objectives').update({achievement_pct:auto}).eq('id',o.id);}
+  renderMBO();
+  showToast('Sotto-obiettivo aggiornato','success');
+}
+// elimina sotto-obiettivo
+async function deleteSubObjective(subId){
+  if(currentRole!=='admin')return;
+  const s=mboSubs.find(x=>x.id===subId);if(!s)return;
+  if(!confirm('Eliminare il sotto-obiettivo "'+(s.title||'')+'"?'))return;
+  const objId=s.objective_id;
+  const{error}=await sb.from('mbo_subobjectives').delete().eq('id',subId);
+  if(error){showToast('Errore: '+error.message,'error');return}
+  mboSubs=mboSubs.filter(x=>x.id!==subId);
+  if(mboEditingSub===subId)mboEditingSub=null;
+  // se obiettivo padre in auto, ricalcola
+  const o=mboObjectives.find(x=>x.id===objId);
+  if(o&&!o.manual_pct){const auto=mboAutoPct(objId);o.achievement_pct=auto;sb.from('mbo_objectives').update({achievement_pct:auto}).eq('id',objId);}
+  renderMBO();
+  showToast('Sotto-obiettivo eliminato','success');
 }
 
 // ── MBO: AGGIUNGI SCHEDA (persona + card + 3 obiettivi) ───────
