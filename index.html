@@ -195,6 +195,11 @@ body{background:var(--bg);color:var(--text);font-family:"DM Sans",sans-serif;fon
 .gantt-project-row.drop-above{box-shadow:inset 0 3px 0 0 var(--accent)}
 .gantt-project-row.drop-below{box-shadow:inset 0 -3px 0 0 var(--accent)}
 .gantt-area-header.drop-target,.gantt-area-empty.drop-target{outline:2px dashed var(--accent);outline-offset:-2px}
+.gantt-area-header.sec-dragging{opacity:.5}
+.gantt-area-header.sec-drop-above{box-shadow:inset 0 3px 0 0 var(--accent2)}
+.gantt-area-header.sec-drop-below{box-shadow:inset 0 -3px 0 0 var(--accent2)}
+.sec-drag-handle:active{cursor:grabbing}
+.sec-move-btn:disabled{opacity:.4}
 
 /* TABS (Gantt / MBO) */
 #view-tabs{display:flex;gap:4px;margin-bottom:16px;border-bottom:1px solid var(--border)}
@@ -460,6 +465,7 @@ let expandedAreas={}, expandedProjects={};
 let currentZoom='full';
 let currentModalProjectId=null;
 let dragProjectId=null;        // drag&drop: progetto trascinato
+let dragSectionName=null;      // drag&drop: sezione trascinata
 let currentView='gantt';
 let mboPeople=[], mboCards=[], mboObjectives=[], mboSubs=[];
 let mboLoaded=false;
@@ -670,7 +676,7 @@ function renderGantt(){
   });
   html+=`</div></div>`;
 
-  allAreas.forEach(area=>{
+  allAreas.forEach((area,areaIdx)=>{
     const areaProjects=filtered.filter(p=>p.area===area).sort((a,b)=>(a.sort_order||0)-(b.sort_order||0));
     // con filtro stato attivo nascondo le sezioni senza progetti corrispondenti
     if(areaProjects.length===0&&effectiveStatusFilter!=='all')return;
@@ -678,14 +684,22 @@ function renderGantt(){
     const isExp=expandedAreas[area]!==false;
     const areaCount=allProjects.filter(p=>p.area===area).length;
     const areaEsc=area.replace(/'/g,"\\'");
+    const isFirst=areaIdx===0;
+    const isLast=areaIdx===allAreas.length-1;
 
     html+=`<div class="gantt-area-header" data-area="${escHtml(area)}" style="display:flex;border-bottom:1px solid var(--border);background:var(--bg3)"
-      ondragover="onAreaDragOver(event,'${areaEsc}')" ondrop="onAreaDrop(event,'${areaEsc}')">
-      <div style="width:${sidebarW}px;flex-shrink:0;border-right:1px solid var(--border);height:30px;display:flex;align-items:center;gap:8px;padding:0 14px;cursor:pointer;position:sticky;left:0;z-index:5;background:var(--bg3)" onclick="toggleArea('${areaEsc}')">
+      ${isAdmin?`ondragover="onSectionOrProjDragOver(event,'${areaEsc}')" ondrop="onSectionOrProjDrop(event,'${areaEsc}')"`:''}>
+      <div style="width:${sidebarW}px;flex-shrink:0;border-right:1px solid var(--border);height:30px;display:flex;align-items:center;gap:7px;padding:0 10px 0 ${isAdmin?'8':'14'}px;cursor:pointer;position:sticky;left:0;z-index:5;background:var(--bg3)" onclick="toggleArea('${areaEsc}')">
+        ${isAdmin?`<span class="sec-drag-handle" draggable="true" title="Trascina per riordinare la sezione" onclick="event.stopPropagation()" ondragstart="onSectionDragStart(event,'${areaEsc}')" ondragend="onSectionDragEnd(event)" style="cursor:grab;color:var(--text4);font-size:12px;line-height:1;user-select:none">&#x2807;</span>`:''}
         <div style="width:8px;height:8px;border-radius:50%;background:${color};flex-shrink:0"></div>
         <span style="font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:${color}">${escHtml(area)}</span>
         <span style="font-size:10px;color:var(--text4)">${areaCount}</span>
-        ${isAdmin?`<button class="area-add-btn" title="Nuovo progetto in ${escHtml(area)}" onclick="event.stopPropagation();openNewProjectModal('${areaEsc}')" style="border:none;background:none;cursor:pointer;color:var(--text3);font-size:13px;line-height:1;padding:0 2px">+</button>`:''}
+        ${isAdmin?`
+        <span style="display:inline-flex;gap:1px;margin-left:4px">
+          <button class="sec-move-btn" title="Sposta su" onclick="event.stopPropagation();moveSection('${areaEsc}',-1)" ${isFirst?'disabled':''} style="border:none;background:none;cursor:${isFirst?'default':'pointer'};color:var(--text${isFirst?'4':'3'});font-size:10px;line-height:1;padding:0 1px">&#9650;</button>
+          <button class="sec-move-btn" title="Sposta giù" onclick="event.stopPropagation();moveSection('${areaEsc}',1)" ${isLast?'disabled':''} style="border:none;background:none;cursor:${isLast?'default':'pointer'};color:var(--text${isLast?'4':'3'});font-size:10px;line-height:1;padding:0 1px">&#9660;</button>
+        </span>
+        <button class="area-add-btn" title="Nuovo progetto in ${escHtml(area)}" onclick="event.stopPropagation();openNewProjectModal('${areaEsc}')" style="border:none;background:none;cursor:pointer;color:var(--text3);font-size:13px;line-height:1;padding:0 2px">+</button>`:''}
         <span style="margin-left:auto;font-size:10px;color:var(--text3);transition:transform .2s;display:inline-block;transform:rotate(${isExp?0:-90}deg)">&#9660;</span>
       </div>
       <div style="flex:1;height:30px;background:${color}10"></div>
@@ -694,7 +708,7 @@ function renderGantt(){
     if(!isExp)return;
 
     if(areaProjects.length===0){
-      html+=`<div class="gantt-area-empty" ondragover="onAreaDragOver(event,'${areaEsc}')" ondrop="onAreaDrop(event,'${areaEsc}')" style="display:flex;border-bottom:1px solid var(--border);height:30px">
+      html+=`<div class="gantt-area-empty" ${isAdmin?`ondragover="onAreaDragOver(event,'${areaEsc}')" ondrop="onAreaDrop(event,'${areaEsc}')"`:''} style="display:flex;border-bottom:1px solid var(--border);height:30px">
         <div style="width:${sidebarW}px;flex-shrink:0;border-right:1px solid var(--border);display:flex;align-items:center;padding:0 18px;position:sticky;left:0;z-index:5;background:var(--bg4);font-size:11px;color:var(--text4);font-style:italic">Nessun progetto${isAdmin?' — trascina qui o usa +':''}</div>
         <div style="flex:1;background:var(--bg4)"></div>
       </div>`;
@@ -798,6 +812,7 @@ function toggleProject(id){expandedProjects[id]=!expandedProjects[id];renderGant
 // ══════════════════════════════════════════════════════════════
 function onProjDragStart(e,pid){
   dragProjectId=pid;
+  dragSectionName=null;
   e.dataTransfer.effectAllowed='move';
   try{e.dataTransfer.setData('text/plain',String(pid))}catch(_){}
   const row=e.currentTarget;row.classList.add('dragging');
@@ -847,6 +862,98 @@ async function onAreaDrop(e,area){
   clearDragMarkers();
   if(dragged===null)return;
   await reorderProject(dragged,area,null,false);
+}
+
+// ── DRAG&DROP SEZIONI (riordino intere sezioni) ───────────────
+function onSectionDragStart(e,area){
+  dragSectionName=area;
+  dragProjectId=null; // priorità alla sezione
+  e.dataTransfer.effectAllowed='move';
+  try{e.dataTransfer.setData('text/plain','section:'+area)}catch(_){}
+  const header=e.currentTarget.closest('.gantt-area-header');
+  if(header)header.classList.add('sec-dragging');
+}
+function onSectionDragEnd(e){
+  dragSectionName=null;
+  document.querySelectorAll('.gantt-area-header').forEach(r=>r.classList.remove('sec-dragging','sec-drop-above','sec-drop-below','drop-target'));
+}
+// Dragover sull'header: distingue se sto trascinando una sezione o un progetto
+function onSectionOrProjDragOver(e,area){
+  if(dragSectionName!==null){
+    if(dragSectionName===area)return;
+    e.preventDefault();e.dataTransfer.dropEffect='move';
+    const header=e.currentTarget;
+    const rect=header.getBoundingClientRect();
+    const below=(e.clientY-rect.top)>rect.height/2;
+    document.querySelectorAll('.gantt-area-header').forEach(r=>r.classList.remove('sec-drop-above','sec-drop-below'));
+    header.classList.add(below?'sec-drop-below':'sec-drop-above');
+  }else if(dragProjectId!==null){
+    onAreaDragOver(e,area);
+  }
+}
+async function onSectionOrProjDrop(e,area){
+  e.preventDefault();e.stopPropagation();
+  if(dragSectionName!==null){
+    const src=dragSectionName;
+    const rect=e.currentTarget.getBoundingClientRect();
+    const below=(e.clientY-rect.top)>rect.height/2;
+    document.querySelectorAll('.gantt-area-header').forEach(r=>r.classList.remove('sec-drop-above','sec-drop-below'));
+    if(src!==area)await reorderSection(src,area,below);
+  }else if(dragProjectId!==null){
+    await onAreaDrop(e,area);
+  }
+}
+
+// Sposta una sezione su/giù di una posizione (frecce)
+async function moveSection(area,dir){
+  if(currentRole!=='admin')return;
+  const names=orderedAreaNames();
+  const i=names.indexOf(area);
+  const j=i+dir;
+  if(i<0||j<0||j>=names.length)return;
+  await reorderSection(area, names[j], dir>0); // rilascia prima/dopo il vicino
+}
+
+// Registra in gantt_sections tutte le sezioni non ancora presenti (retrocompat storiche)
+async function ensureSectionsRegistered(names){
+  const missing=names.filter(n=>!allSections.find(s=>s.name===n));
+  for(const nm of missing){
+    const maxSort=allSections.reduce((m,s)=>Math.max(m,s.sort_order||0),0);
+    const{data,error}=await sb.from('gantt_sections').insert({name:nm,color:AREA_COLORS(nm),sort_order:maxSort+1}).select().single();
+    if(error)throw error;
+    allSections.push(data);
+  }
+}
+
+// Riordina spostando `src` immediatamente prima/dopo `anchor`, poi persiste sort_order
+async function reorderSection(src,anchor,after){
+  if(currentRole!=='admin')return;
+  try{
+    let names=orderedAreaNames();
+    // assicura che tutte (incluse le storiche) siano in gantt_sections così sort_order è persistibile
+    await ensureSectionsRegistered(names);
+    names=names.filter(n=>n!==src);
+    let idx=names.indexOf(anchor);
+    if(idx<0)idx=names.length-1;
+    const insertAt=after?idx+1:idx;
+    names.splice(insertAt,0,src);
+    // riassegna sort_order sequenziale e persisti
+    for(let k=0;k<names.length;k++){
+      const sec=allSections.find(s=>s.name===names[k]);
+      if(!sec)continue;
+      const newSort=(k+1)*10;
+      if(sec.sort_order!==newSort){
+        const{error}=await sb.from('gantt_sections').update({sort_order:newSort}).eq('id',sec.id);
+        if(error)throw error;
+        sec.sort_order=newSort;
+      }
+    }
+    renderGantt();
+    showToast('Ordine sezioni aggiornato','success');
+  }catch(err){
+    showToast('Errore riordino sezioni: '+(err.message||err),'error');
+    await loadData();
+  }
 }
 
 // Ricalcola l'ordine dei progetti nella sezione di destinazione e persiste
