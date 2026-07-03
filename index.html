@@ -183,6 +183,18 @@ body{background:var(--bg);color:var(--text);font-family:"DM Sans",sans-serif;fon
 .add-milestone-form input{flex:1;min-width:150px;padding:7px 10px;border:1px solid var(--border2);border-radius:var(--radius);font-family:inherit;font-size:12px;background:var(--bg);color:var(--text);outline:none}
 .add-milestone-form input:focus{border-color:var(--accent)}
 .add-milestone-form .btn{padding:7px 12px;font-size:12px;width:auto}
+.mi-edit{border:none;background:none;cursor:pointer;color:var(--text3);font-size:12px;padding:2px 4px;line-height:1}
+.mi-edit:hover{color:var(--accent)}
+.mi-edit-form{display:flex;gap:6px;align-items:center;flex-wrap:wrap;width:100%}
+.mi-edit-form input[type=text]{flex:2;min-width:120px;padding:5px 8px;border:1px solid var(--border2);border-radius:4px;font-family:inherit;font-size:12px;background:var(--bg);color:var(--text)}
+.mi-edit-form input[type=date]{padding:5px 8px;border:1px solid var(--border2);border-radius:4px;font-family:inherit;font-size:12px;background:var(--bg);color:var(--text)}
+.mi-edit-form .btn{padding:5px 10px;font-size:11px;width:auto}
+.area-add-btn:hover{color:var(--accent)!important}
+.drag-handle:active{cursor:grabbing}
+.gantt-project-row.dragging{opacity:.4}
+.gantt-project-row.drop-above{box-shadow:inset 0 3px 0 0 var(--accent)}
+.gantt-project-row.drop-below{box-shadow:inset 0 -3px 0 0 var(--accent)}
+.gantt-area-header.drop-target,.gantt-area-empty.drop-target{outline:2px dashed var(--accent);outline-offset:-2px}
 
 /* TABS (Gantt / MBO) */
 #view-tabs{display:flex;gap:4px;margin-bottom:16px;border-bottom:1px solid var(--border)}
@@ -388,18 +400,22 @@ body{background:var(--bg);color:var(--text);font-family:"DM Sans",sans-serif;fon
 
     <div id="filters-bar">
       <span class="filter-label">Area</span>
-      <button class="filter-chip fc-all active" data-area="all" onclick="setAreaFilter(this)">Tutte</button>
-      <button class="filter-chip fc-edilizia" data-area="Edilizia" onclick="setAreaFilter(this)">Edilizia</button>
-      <button class="filter-chip fc-slv" data-area="Industria SLV" onclick="setAreaFilter(this)">Ind. SLV</button>
-      <button class="filter-chip fc-h2o" data-area="Industria H2O" onclick="setAreaFilter(this)">Ind. H2O</button>
-      <button class="filter-chip fc-color" data-area="Colorimetria" onclick="setAreaFilter(this)">Colorimetria</button>
-      <button class="filter-chip fc-tracc" data-area="Traccianti" onclick="setAreaFilter(this)">Traccianti</button>
-      <button class="filter-chip fc-cq" data-area="Controllo Qualita" onclick="setAreaFilter(this)">CQ</button>
+      <span id="area-chips" style="display:contents"></span>
       <div class="filter-sep"></div>
       <span class="filter-label">Zoom</span>
       <button class="btn btn-ghost btn-small" onclick="setZoom('year')" id="zoom-year">Anno</button>
       <button class="btn btn-ghost btn-small" onclick="setZoom('half')" id="zoom-half">Semestre</button>
       <button class="btn btn-ghost btn-small" onclick="setZoom('full')" id="zoom-full" style="color:var(--accent);border-color:var(--accent)">4 Anni</button>
+    </div>
+
+    <div id="admin-gantt-toolbar" style="display:none;gap:8px;flex-wrap:wrap;align-items:center;padding:8px 4px 2px">
+      <span class="filter-label">Gestione</span>
+      <button class="btn btn-ghost btn-small" onclick="openNewProjectModal()">+ Nuovo progetto</button>
+      <div class="filter-sep"></div>
+      <button class="btn btn-ghost btn-small" onclick="createSection()">+ Genera sezione</button>
+      <button class="btn btn-ghost btn-small" onclick="renameSection()">Rinomina sezione</button>
+      <button class="btn btn-ghost btn-small" onclick="recolorSection()">Colore sezione</button>
+      <button class="btn btn-ghost btn-small" onclick="removeSection()">Rimuovi sezione</button>
     </div>
 
     <div id="gantt-wrapper">
@@ -438,10 +454,12 @@ const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 let currentUser=null, currentRole='viewer';
 let allProjects=[], allSubtasks=[], allMilestones=[];
+let allSections=[];            // righe gantt_sections {id,name,color,sort_order}
 let activeAreaFilter='all', activeStatusFilter='all', activeKpiFilter='all';
 let expandedAreas={}, expandedProjects={};
 let currentZoom='full';
 let currentModalProjectId=null;
+let dragProjectId=null;        // drag&drop: progetto trascinato
 let currentView='gantt';
 let mboPeople=[], mboCards=[], mboObjectives=[], mboSubs=[];
 let mboLoaded=false;
@@ -451,11 +469,31 @@ let mboEditingSub=null;
 const PROGRAM_START=new Date('2025-01-01');
 const PROGRAM_END=new Date('2028-12-31');
 
-const AREA_COLORS={
+// Colori di fallback per le 6 sezioni storiche (usati se gantt_sections non è ancora caricata)
+const AREA_COLORS_FALLBACK={
   'Edilizia':'#2B5EA7','Industria SLV':'#B85C00','Industria H2O':'#0077A8',
   'Colorimetria':'#6B3FA0','Traccianti':'#1E7E4A',
-  'Controllo Qualita':'#B07D00','Controllo Qualita':'#B07D00','Controllo Qualità':'#B07D00'
+  'Controllo Qualita':'#B07D00','Controllo Qualità':'#B07D00'
 };
+// Palette proposta per nuove sezioni (Bordeaux in testa) — quelle non ancora usate vengono offerte
+const SECTION_PALETTE=[
+  '#8E2436','#4A4A4A','#0E7C7B','#7A5C1E','#3B5323','#5D3A9B',
+  '#A64B00','#1F6F8B','#8C1D40','#2E6E4E','#6E4B1F','#455A64'
+];
+// Restituisce il colore di una sezione (da gantt_sections, poi fallback, poi grigio)
+function AREA_COLORS(area){
+  const s=allSections.find(x=>x.name===area);
+  if(s&&s.color)return s.color;
+  return AREA_COLORS_FALLBACK[area]||'#666666';
+}
+// Elenco ordinato dei nomi sezione da mostrare: unione gantt_sections + aree presenti sui progetti
+function orderedAreaNames(){
+  const names=[];
+  allSections.slice().sort((a,b)=>(a.sort_order||0)-(b.sort_order||0)).forEach(s=>{if(!names.includes(s.name))names.push(s.name)});
+  // aree presenti sui progetti ma non registrate in gantt_sections (retrocompat)
+  [...new Set(allProjects.map(p=>p.area))].forEach(a=>{if(a&&!names.includes(a))names.push(a)});
+  return names;
+}
 
 // ── AUTH ──────────────────────────────────────────────────────
 async function doLogin(){
@@ -479,6 +517,8 @@ async function initApp(user){
   const rb=document.getElementById('role-badge');
   rb.textContent=currentRole;rb.className='role-badge role-'+currentRole;
   document.getElementById('tab-mbo').style.display = currentRole==='admin' ? '' : 'none';
+  const agt=document.getElementById('admin-gantt-toolbar');
+  if(agt)agt.style.display = currentRole==='admin' ? 'flex' : 'none';
   document.getElementById('login-screen').style.display='none';
   document.getElementById('app').style.display='flex';
   updateDateIndicator();
@@ -499,14 +539,17 @@ function updateDateIndicator(){
 
 // ── DATA ──────────────────────────────────────────────────────
 async function loadData(){
-  const[pRes,sRes,mRes]=await Promise.all([
+  const[pRes,sRes,mRes,secRes]=await Promise.all([
     sb.from('projects').select('*').order('area').order('sort_order'),
     sb.from('subtasks').select('*').order('sort_order'),
     sb.from('milestones').select('*').order('due_date'),
+    sb.from('gantt_sections').select('*').order('sort_order'),
   ]);
   if(pRes.error){showToast('Errore: '+pRes.error.message,'error');return}
   allProjects=pRes.data||[];allSubtasks=sRes.data||[];allMilestones=mRes.data||[];
-  const areas=[...new Set(allProjects.map(p=>p.area))];
+  // gantt_sections può non esistere ancora (migration non eseguita): degrada senza bloccare
+  allSections=secRes&&!secRes.error?(secRes.data||[]):[];
+  const areas=orderedAreaNames();
   areas.forEach(a=>{if(expandedAreas[a]===undefined)expandedAreas[a]=true});
   updateKPIs();renderGantt();
 }
@@ -554,9 +597,8 @@ function setKpiFilter(status){
 
 // ── FILTERS ───────────────────────────────────────────────────
 function setAreaFilter(btn){
-  document.querySelectorAll('#filters-bar .filter-chip').forEach(b=>b.classList.remove('active'));
-  btn.classList.add('active');
   activeAreaFilter=btn.dataset.area;
+  renderAreaChips();
   renderGantt();
 }
 function applyFilters(){
@@ -576,6 +618,7 @@ function setZoom(z){
 
 // ── GANTT ─────────────────────────────────────────────────────
 function renderGantt(){
+  renderAreaChips();
   const today=new Date();
   let tStart,tEnd;
   if(currentZoom==='full'){tStart=PROGRAM_START;tEnd=PROGRAM_END}
@@ -611,7 +654,8 @@ function renderGantt(){
     return true;
   });
 
-  const allAreas=[...new Set(allProjects.map(p=>p.area))];
+  const allAreas=orderedAreaNames();
+  const isAdmin=currentRole==='admin';
   const mNames=['GEN','FEB','MAR','APR','MAG','GIU','LUG','AGO','SET','OTT','NOV','DIC'];
 
   let html=`<div style="display:flex;flex-direction:column;min-width:${totalW+sidebarW}px">`;
@@ -627,23 +671,34 @@ function renderGantt(){
   html+=`</div></div>`;
 
   allAreas.forEach(area=>{
-    const areaProjects=filtered.filter(p=>p.area===area);
+    const areaProjects=filtered.filter(p=>p.area===area).sort((a,b)=>(a.sort_order||0)-(b.sort_order||0));
+    // con filtro stato attivo nascondo le sezioni senza progetti corrispondenti
     if(areaProjects.length===0&&effectiveStatusFilter!=='all')return;
-    const color=AREA_COLORS[area]||'#666';
+    const color=AREA_COLORS(area);
     const isExp=expandedAreas[area]!==false;
     const areaCount=allProjects.filter(p=>p.area===area).length;
+    const areaEsc=area.replace(/'/g,"\\'");
 
-    html+=`<div style="display:flex;border-bottom:1px solid var(--border);background:var(--bg3)">
-      <div style="width:${sidebarW}px;flex-shrink:0;border-right:1px solid var(--border);height:30px;display:flex;align-items:center;gap:8px;padding:0 14px;cursor:pointer;position:sticky;left:0;z-index:5;background:var(--bg3)" onclick="toggleArea('${area.replace(/'/g,"\'")}')">
+    html+=`<div class="gantt-area-header" data-area="${escHtml(area)}" style="display:flex;border-bottom:1px solid var(--border);background:var(--bg3)"
+      ondragover="onAreaDragOver(event,'${areaEsc}')" ondrop="onAreaDrop(event,'${areaEsc}')">
+      <div style="width:${sidebarW}px;flex-shrink:0;border-right:1px solid var(--border);height:30px;display:flex;align-items:center;gap:8px;padding:0 14px;cursor:pointer;position:sticky;left:0;z-index:5;background:var(--bg3)" onclick="toggleArea('${areaEsc}')">
         <div style="width:8px;height:8px;border-radius:50%;background:${color};flex-shrink:0"></div>
-        <span style="font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:${color}">${area}</span>
+        <span style="font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:${color}">${escHtml(area)}</span>
         <span style="font-size:10px;color:var(--text4)">${areaCount}</span>
+        ${isAdmin?`<button class="area-add-btn" title="Nuovo progetto in ${escHtml(area)}" onclick="event.stopPropagation();openNewProjectModal('${areaEsc}')" style="border:none;background:none;cursor:pointer;color:var(--text3);font-size:13px;line-height:1;padding:0 2px">+</button>`:''}
         <span style="margin-left:auto;font-size:10px;color:var(--text3);transition:transform .2s;display:inline-block;transform:rotate(${isExp?0:-90}deg)">&#9660;</span>
       </div>
       <div style="flex:1;height:30px;background:${color}10"></div>
     </div>`;
 
     if(!isExp)return;
+
+    if(areaProjects.length===0){
+      html+=`<div class="gantt-area-empty" ondragover="onAreaDragOver(event,'${areaEsc}')" ondrop="onAreaDrop(event,'${areaEsc}')" style="display:flex;border-bottom:1px solid var(--border);height:30px">
+        <div style="width:${sidebarW}px;flex-shrink:0;border-right:1px solid var(--border);display:flex;align-items:center;padding:0 18px;position:sticky;left:0;z-index:5;background:var(--bg4);font-size:11px;color:var(--text4);font-style:italic">Nessun progetto${isAdmin?' — trascina qui o usa +':''}</div>
+        <div style="flex:1;background:var(--bg4)"></div>
+      </div>`;
+    }
 
     areaProjects.forEach(proj=>{
       const subtasks=allSubtasks.filter(s=>s.project_id===proj.id);
@@ -661,8 +716,11 @@ function renderGantt(){
         notes:proj.notes?(proj.notes.substring(0,120)+(proj.notes.length>120?'…':'')):''
       }).replace(/"/g,'&quot;');
 
-      html+=`<div style="display:flex;border-bottom:1px solid var(--border);height:var(--gantt-row-h);transition:background .15s" onmouseenter="this.style.background='rgba(43,94,167,.05)'" onmouseleave="this.style.background=''">
-        <div style="width:${sidebarW}px;flex-shrink:0;border-right:1px solid var(--border);display:flex;align-items:center;gap:7px;padding:0 10px 0 18px;cursor:pointer;background:var(--bg4);position:sticky;left:0;z-index:5;transition:background .15s" onclick="openProjectModal(${proj.id})" onmouseenter="this.style.background='#E8E8E8'" onmouseleave="this.style.background='var(--bg4)'">
+      html+=`<div class="gantt-project-row" data-pid="${proj.id}" data-area="${escHtml(proj.area)}"
+        ${isAdmin?`draggable="true" ondragstart="onProjDragStart(event,${proj.id})" ondragend="onProjDragEnd(event)" ondragover="onProjDragOver(event,${proj.id},'${areaEsc}')" ondrop="onProjDrop(event,${proj.id},'${areaEsc}')"`:''}
+        style="display:flex;border-bottom:1px solid var(--border);height:var(--gantt-row-h);transition:background .15s" onmouseenter="this.style.background='rgba(43,94,167,.05)'" onmouseleave="this.style.background=''">
+        <div style="width:${sidebarW}px;flex-shrink:0;border-right:1px solid var(--border);display:flex;align-items:center;gap:6px;padding:0 10px 0 ${isAdmin?'8':'18'}px;cursor:pointer;background:var(--bg4);position:sticky;left:0;z-index:5;transition:background .15s" onclick="openProjectModal(${proj.id})" onmouseenter="this.style.background='#E8E8E8'" onmouseleave="this.style.background='var(--bg4)'">
+          ${isAdmin?`<span class="drag-handle" title="Trascina per spostare/riordinare" onclick="event.stopPropagation()" style="cursor:grab;color:var(--text4);font-size:12px;line-height:1;user-select:none">&#x2807;</span>`:''}
           <button class="project-expand-btn ${hasChildren?'':'no-children'}" id="proj-exp-${proj.id}" onclick="event.stopPropagation();toggleProject(${proj.id})">${isExpP?'&#9660;':'&#9658;'}</button>
           <div class="project-status-dot status-${proj.status}"></div>
           <div class="project-name" title="${escHtml(proj.title)}">${escHtml(proj.title)}</div>
@@ -720,8 +778,337 @@ function updateTodayLine(todayX,sidebarW){
   line.style.display=(xInTimeline<sidebarW||xInTimeline>rect.width)?'none':'block';
 }
 
+function renderAreaChips(){
+  const wrap=document.getElementById('area-chips');
+  if(!wrap)return;
+  let h=`<button class="filter-chip ${activeAreaFilter==='all'?'active':''}" data-area="all" onclick="setAreaFilter(this)">Tutte</button>`;
+  orderedAreaNames().forEach(a=>{
+    const col=AREA_COLORS(a);
+    const act=activeAreaFilter===a?'active':'';
+    h+=`<button class="filter-chip ${act}" data-area="${escHtml(a)}" onclick="setAreaFilter(this)" style="${act?`background:${col};border-color:${col};color:#fff`:''}">
+      <span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${col};margin-right:5px;vertical-align:middle"></span>${escHtml(a)}</button>`;
+  });
+  wrap.innerHTML=h;
+}
 function toggleArea(area){expandedAreas[area]=!expandedAreas[area];renderGantt()}
 function toggleProject(id){expandedProjects[id]=!expandedProjects[id];renderGantt()}
+
+// ══════════════════════════════════════════════════════════════
+// DRAG & DROP PROGETTI (riordino + spostamento tra sezioni)
+// ══════════════════════════════════════════════════════════════
+function onProjDragStart(e,pid){
+  dragProjectId=pid;
+  e.dataTransfer.effectAllowed='move';
+  try{e.dataTransfer.setData('text/plain',String(pid))}catch(_){}
+  const row=e.currentTarget;row.classList.add('dragging');
+}
+function onProjDragEnd(e){
+  dragProjectId=null;
+  document.querySelectorAll('.gantt-project-row').forEach(r=>r.classList.remove('dragging','drop-above','drop-below'));
+  document.querySelectorAll('.gantt-area-header,.gantt-area-empty').forEach(r=>r.classList.remove('drop-target'));
+}
+function onProjDragOver(e,targetPid,area){
+  if(dragProjectId===null||dragProjectId===targetPid)return;
+  e.preventDefault();e.dataTransfer.dropEffect='move';
+  const row=e.currentTarget;
+  const rect=row.getBoundingClientRect();
+  const below=(e.clientY-rect.top)>rect.height/2;
+  document.querySelectorAll('.gantt-project-row').forEach(r=>r.classList.remove('drop-above','drop-below'));
+  row.classList.add(below?'drop-below':'drop-above');
+}
+function onAreaDragOver(e,area){
+  if(dragProjectId===null)return;
+  e.preventDefault();e.dataTransfer.dropEffect='move';
+  e.currentTarget.classList.add('drop-target');
+}
+function clearDragMarkers(){
+  document.querySelectorAll('.gantt-project-row').forEach(r=>r.classList.remove('drop-above','drop-below'));
+  document.querySelectorAll('.gantt-area-header,.gantt-area-empty').forEach(r=>r.classList.remove('drop-target'));
+}
+document.addEventListener('dragleave',e=>{
+  if(e.target.classList&&(e.target.classList.contains('gantt-area-header')||e.target.classList.contains('gantt-area-empty')))
+    e.target.classList.remove('drop-target');
+});
+
+// Drop su una RIGA progetto: inserisce sopra/sotto quel progetto, nella sua sezione
+async function onProjDrop(e,targetPid,area){
+  e.preventDefault();e.stopPropagation();
+  const dragged=dragProjectId;
+  if(dragged===null||dragged===targetPid){clearDragMarkers();return}
+  const rect=e.currentTarget.getBoundingClientRect();
+  const below=(e.clientY-rect.top)>rect.height/2;
+  clearDragMarkers();
+  await reorderProject(dragged,area,targetPid,below);
+}
+// Drop sull'HEADER o zona vuota di una sezione: in coda a quella sezione
+async function onAreaDrop(e,area){
+  e.preventDefault();e.stopPropagation();
+  const dragged=dragProjectId;
+  clearDragMarkers();
+  if(dragged===null)return;
+  await reorderProject(dragged,area,null,false);
+}
+
+// Ricalcola l'ordine dei progetti nella sezione di destinazione e persiste
+async function reorderProject(pid,targetArea,anchorPid,below){
+  if(currentRole!=='admin')return;
+  const moved=allProjects.find(p=>p.id===pid);
+  if(!moved)return;
+  const oldArea=moved.area;
+  // lista destinazione (esclude il progetto mosso), ordinata
+  let destList=allProjects.filter(p=>p.area===targetArea&&p.id!==pid).sort((a,b)=>(a.sort_order||0)-(b.sort_order||0));
+  // calcola indice di inserimento
+  let insertIdx=destList.length;
+  if(anchorPid!==null){
+    const ai=destList.findIndex(p=>p.id===anchorPid);
+    if(ai>=0)insertIdx=below?ai+1:ai;
+  }
+  moved.area=targetArea;
+  destList.splice(insertIdx,0,moved);
+  // riassegna sort_order sequenziale
+  const updates=destList.map((p,i)=>({id:p.id,sort_order:(i+1)*10}));
+  // aggiorna modello locale
+  updates.forEach(u=>{const p=allProjects.find(x=>x.id===u.id);if(p)p.sort_order=u.sort_order});
+  // persisti su Supabase (aggiorno area del mosso + sort_order di tutta la sezione dest)
+  try{
+    const{error:e1}=await sb.from('projects').update({area:targetArea,updated_at:new Date().toISOString()}).eq('id',pid);
+    if(e1)throw e1;
+    for(const u of updates){
+      const{error:e2}=await sb.from('projects').update({sort_order:u.sort_order}).eq('id',u.id);
+      if(e2)throw e2;
+    }
+    await sb.from('audit_log').insert({user_id:currentUser.id,table_name:'projects',record_id:pid,action:'UPDATE',new_data:{area:targetArea,reordered:true}});
+    if(oldArea!==targetArea)showToast(`Spostato in "${targetArea}"`,'success');
+    else showToast('Ordine aggiornato','success');
+  }catch(err){
+    showToast('Errore riordino: '+(err.message||err),'error');
+    await loadData();return;
+  }
+  updateKPIs();renderGantt();
+}
+
+// ══════════════════════════════════════════════════════════════
+// CRUD SEZIONI (gantt_sections)
+// ══════════════════════════════════════════════════════════════
+function nextSectionColor(){
+  const used=new Set(allSections.map(s=>(s.color||'').toLowerCase()));
+  const free=SECTION_PALETTE.find(c=>!used.has(c.toLowerCase()));
+  return free||SECTION_PALETTE[0];
+}
+async function createSection(){
+  if(currentRole!=='admin')return;
+  const name=prompt('Nome della nuova sezione:');
+  if(name===null)return;
+  const nm=name.trim();
+  if(!nm){showToast('Nome non valido','error');return}
+  if(orderedAreaNames().includes(nm)){showToast('Sezione già esistente','error');return}
+  const proposed=nextSectionColor();
+  let color=prompt(`Colore esadecimale (proposto: ${proposed}):`,proposed);
+  if(color===null)return;
+  color=color.trim();
+  if(!/^#[0-9A-Fa-f]{6}$/.test(color))color=proposed;
+  const maxSort=allSections.reduce((m,s)=>Math.max(m,s.sort_order||0),0);
+  const{data,error}=await sb.from('gantt_sections').insert({name:nm,color,sort_order:maxSort+1}).select().single();
+  if(error){showToast('Errore: '+error.message,'error');return}
+  allSections.push(data);
+  expandedAreas[nm]=true;
+  renderGantt();
+  showToast(`Sezione "${nm}" creata`,'success');
+}
+function pickSection(promptMsg){
+  const names=orderedAreaNames();
+  if(names.length===0){showToast('Nessuna sezione','error');return null}
+  const listed=names.map((n,i)=>`${i+1}. ${n}`).join('\n');
+  const ans=prompt(`${promptMsg}\n\n${listed}\n\nInserisci il numero:`);
+  if(ans===null)return null;
+  const idx=parseInt(ans,10)-1;
+  if(isNaN(idx)||idx<0||idx>=names.length){showToast('Selezione non valida','error');return null}
+  return names[idx];
+}
+async function renameSection(){
+  if(currentRole!=='admin')return;
+  const oldName=pickSection('Quale sezione vuoi rinominare?');
+  if(!oldName)return;
+  const nn=prompt(`Nuovo nome per "${oldName}":`,oldName);
+  if(nn===null)return;
+  const newName=nn.trim();
+  if(!newName){showToast('Nome non valido','error');return}
+  if(newName===oldName)return;
+  if(orderedAreaNames().includes(newName)){showToast('Nome già in uso','error');return}
+  try{
+    const sec=allSections.find(s=>s.name===oldName);
+    if(sec){
+      const{error:e1}=await sb.from('gantt_sections').update({name:newName}).eq('id',sec.id);
+      if(e1)throw e1;
+      sec.name=newName;
+    }else{
+      // sezione storica non ancora in gantt_sections: la registro col nuovo nome
+      const maxSort=allSections.reduce((m,s)=>Math.max(m,s.sort_order||0),0);
+      const{data,error:eIns}=await sb.from('gantt_sections').insert({name:newName,color:AREA_COLORS(oldName),sort_order:maxSort+1}).select().single();
+      if(eIns)throw eIns;
+      allSections.push(data);
+    }
+    // cascata sui progetti
+    const{error:e2}=await sb.from('projects').update({area:newName}).eq('area',oldName);
+    if(e2)throw e2;
+    allProjects.forEach(p=>{if(p.area===oldName)p.area=newName});
+    if(expandedAreas[oldName]!==undefined){expandedAreas[newName]=expandedAreas[oldName];delete expandedAreas[oldName]}
+    renderGantt();updateKPIs();
+    showToast('Sezione rinominata','success');
+  }catch(err){showToast('Errore: '+(err.message||err),'error');await loadData()}
+}
+async function recolorSection(){
+  if(currentRole!=='admin')return;
+  const name=pickSection('Di quale sezione vuoi cambiare il colore?');
+  if(!name)return;
+  const cur=AREA_COLORS(name);
+  let color=prompt(`Nuovo colore esadecimale per "${name}" (attuale ${cur}):`,cur);
+  if(color===null)return;
+  color=color.trim();
+  if(!/^#[0-9A-Fa-f]{6}$/.test(color)){showToast('Colore non valido (usa #RRGGBB)','error');return}
+  try{
+    const sec=allSections.find(s=>s.name===name);
+    if(sec){
+      const{error}=await sb.from('gantt_sections').update({color}).eq('id',sec.id);
+      if(error)throw error;
+      sec.color=color;
+    }else{
+      const maxSort=allSections.reduce((m,s)=>Math.max(m,s.sort_order||0),0);
+      const{data,error}=await sb.from('gantt_sections').insert({name,color,sort_order:maxSort+1}).select().single();
+      if(error)throw error;
+      allSections.push(data);
+    }
+    renderGantt();
+    showToast('Colore aggiornato','success');
+  }catch(err){showToast('Errore: '+(err.message||err),'error')}
+}
+async function removeSection(){
+  if(currentRole!=='admin')return;
+  const name=pickSection('Quale sezione vuoi rimuovere?');
+  if(!name)return;
+  const count=allProjects.filter(p=>p.area===name).length;
+  if(count>0){showToast(`"${name}" contiene ${count} progetti: spostali prima di rimuoverla`,'error');return}
+  if(!confirm(`Rimuovere la sezione "${name}"?`))return;
+  const sec=allSections.find(s=>s.name===name);
+  if(!sec){showToast('Sezione non registrata: nulla da rimuovere','error');return}
+  const{error}=await sb.from('gantt_sections').delete().eq('id',sec.id);
+  if(error){showToast('Errore: '+error.message,'error');return}
+  allSections=allSections.filter(s=>s.id!==sec.id);
+  delete expandedAreas[name];
+  renderGantt();
+  showToast('Sezione rimossa','success');
+}
+
+// ══════════════════════════════════════════════════════════════
+// CRUD PROGETTI (nuovo / duplica / elimina)
+// ══════════════════════════════════════════════════════════════
+function areaOptionsHtml(selected){
+  return orderedAreaNames().map(a=>`<option value="${escHtml(a)}" ${a===selected?'selected':''}>${escHtml(a)}</option>`).join('');
+}
+function openNewProjectModal(presetArea){
+  if(currentRole!=='admin')return;
+  const areas=orderedAreaNames();
+  const area=presetArea||areas[0]||'';
+  const today=new Date().toISOString().slice(0,10);
+  document.getElementById('modal-content').innerHTML=`
+    <div class="modal-header">
+      <div style="width:10px;height:10px;border-radius:50%;background:${AREA_COLORS(area)};flex-shrink:0"></div>
+      <h2>Nuovo progetto</h2>
+      <button class="modal-close" onclick="closeModal()">&#x2715;</button>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div class="form-group" style="grid-column:1/-1"><label>Titolo</label><input type="text" id="np-title" placeholder="Nome progetto..." /></div>
+      <div class="form-group"><label>Sezione</label><select id="np-area">${areaOptionsHtml(area)}</select></div>
+      <div class="form-group"><label>Stato</label><select id="np-status">
+        <option value="pianificato">pianificato</option><option value="in_corso">in corso</option>
+        <option value="completato">completato</option><option value="sospeso">sospeso</option></select></div>
+      <div class="form-group"><label>Inizio</label><input type="date" id="np-start" value="${today}" /></div>
+      <div class="form-group"><label>Fine</label><input type="date" id="np-end" value="${today}" /></div>
+      <div class="form-group" style="grid-column:1/-1"><label>Descrizione</label><textarea id="np-desc"></textarea></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal()">Annulla</button>
+      <button class="btn btn-primary" onclick="createProject()">Crea</button>
+    </div>`;
+  document.getElementById('modal-overlay').classList.add('open');
+}
+async function createProject(){
+  if(currentRole!=='admin')return;
+  const title=document.getElementById('np-title').value.trim();
+  const area=document.getElementById('np-area').value;
+  const status=document.getElementById('np-status').value;
+  const start=document.getElementById('np-start').value;
+  const end=document.getElementById('np-end').value;
+  const description=document.getElementById('np-desc').value.trim();
+  if(!title){showToast('Inserisci un titolo','error');return}
+  if(!start||!end){showToast('Inserisci le date','error');return}
+  const maxSort=allProjects.filter(p=>p.area===area).reduce((m,p)=>Math.max(m,p.sort_order||0),0);
+  const{data,error}=await sb.from('projects').insert({
+    title,area,status,start_date:start,end_date:end,description:description||null,
+    progress_pct:0,sort_order:maxSort+10
+  }).select().single();
+  if(error){showToast('Errore: '+error.message,'error');return}
+  allProjects.push(data);
+  expandedAreas[area]=true;
+  await sb.from('audit_log').insert({user_id:currentUser.id,table_name:'projects',record_id:data.id,action:'INSERT',new_data:{title,area}});
+  closeModal();updateKPIs();renderGantt();
+  showToast('Progetto creato','success');
+}
+async function duplicateProject(sourceId){
+  if(currentRole!=='admin')return;
+  const src=allProjects.find(p=>p.id===sourceId);
+  if(!src)return;
+  const nt=prompt('Titolo del nuovo progetto (copia):',src.title+' (copia)');
+  if(nt===null)return;
+  const title=nt.trim();
+  if(!title){showToast('Titolo non valido','error');return}
+  const copyMs=confirm('Copiare anche le milestone del progetto originale?\n\nOK = sì   ·   Annulla = no');
+  const maxSort=allProjects.filter(p=>p.area===src.area).reduce((m,p)=>Math.max(m,p.sort_order||0),0);
+  // copio i campi rilevanti, azzerando avanzamento/note operative
+  const newRow={
+    title,area:src.area,status:'pianificato',
+    start_date:src.start_date,end_date:src.end_date,
+    description:src.description||null,
+    resources_days:src.resources_days??null,resources_people:src.resources_people??null,
+    cost_notes:src.cost_notes||null,
+    progress_pct:0,notes:null,sort_order:maxSort+10
+  };
+  const{data:np,error}=await sb.from('projects').insert(newRow).select().single();
+  if(error){showToast('Errore: '+error.message,'error');return}
+  allProjects.push(np);
+  if(copyMs){
+    const srcMs=allMilestones.filter(m=>m.project_id===sourceId);
+    if(srcMs.length){
+      const rows=srcMs.map(m=>({project_id:np.id,title:m.title,due_date:m.due_date,completed:m.completed,completed_at:m.completed?m.completed_at:null}));
+      const{data:insMs,error:eMs}=await sb.from('milestones').insert(rows).select();
+      if(eMs){showToast('Progetto creato, ma errore copia milestone: '+eMs.message,'error');}
+      else if(insMs)allMilestones.push(...insMs);
+    }
+  }
+  await sb.from('audit_log').insert({user_id:currentUser.id,table_name:'projects',record_id:np.id,action:'INSERT',new_data:{duplicated_from:sourceId,title}});
+  closeModal();updateKPIs();renderGantt();
+  showToast('Progetto duplicato','success');
+  openProjectModal(np.id);
+}
+async function deleteProject(id){
+  if(currentRole!=='admin')return;
+  const proj=allProjects.find(p=>p.id===id);
+  if(!proj)return;
+  const nSub=allSubtasks.filter(s=>s.project_id===id).length;
+  const nMs=allMilestones.filter(m=>m.project_id===id).length;
+  if(!confirm(`Eliminare "${proj.title}"?\n\nVerranno eliminati anche ${nSub} sotto-attività e ${nMs} milestone collegate.\n\nOperazione non reversibile.`))return;
+  try{
+    if(nSub){const{error:e1}=await sb.from('subtasks').delete().eq('project_id',id);if(e1)throw e1}
+    if(nMs){const{error:e2}=await sb.from('milestones').delete().eq('project_id',id);if(e2)throw e2}
+    const{error:e3}=await sb.from('projects').delete().eq('id',id);if(e3)throw e3;
+    allSubtasks=allSubtasks.filter(s=>s.project_id!==id);
+    allMilestones=allMilestones.filter(m=>m.project_id!==id);
+    allProjects=allProjects.filter(p=>p.id!==id);
+    await sb.from('audit_log').insert({user_id:currentUser.id,table_name:'projects',record_id:id,action:'DELETE',new_data:{title:proj.title}});
+    closeModal();updateKPIs();renderGantt();
+    showToast('Progetto eliminato','success');
+  }catch(err){showToast('Errore: '+(err.message||err),'error');await loadData()}
+}
 
 // ── TOOLTIP ───────────────────────────────────────────────────
 const tooltip=document.getElementById('gantt-tooltip');
@@ -759,7 +1146,7 @@ function openProjectModal(projectId){
   const subtasks=allSubtasks.filter(s=>s.project_id===projectId);
   const milestones=allMilestones.filter(m=>m.project_id===projectId);
   const isAdmin=currentRole==='admin';
-  const color=AREA_COLORS[proj.area]||'#666';
+  const color=AREA_COLORS(proj.area);
 
   const statusOptions=['pianificato','in_corso','completato','sospeso']
     .map(s=>`<option value="${s}" ${proj.status===s?'selected':''}>${s.replace('_',' ')}</option>`).join('');
@@ -804,16 +1191,26 @@ function openProjectModal(projectId){
 
   const editForm=isAdmin?`
     <div style="margin-top:4px">
-      <div class="modal-section-title">Aggiorna Stato</div>
+      <div class="modal-section-title">Modifica Progetto</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="form-group" style="grid-column:1/-1"><label>Titolo</label><input type="text" id="modal-title" value="${escHtml(proj.title)}" /></div>
+        <div class="form-group"><label>Sezione</label><select id="modal-area">${areaOptionsHtml(proj.area)}</select></div>
         <div class="form-group"><label>Stato</label><select id="modal-status">${statusOptions}</select></div>
+        <div class="form-group"><label>Inizio</label><input type="date" id="modal-start" value="${proj.start_date||''}" /></div>
+        <div class="form-group"><label>Fine</label><input type="date" id="modal-end" value="${proj.end_date||''}" /></div>
         <div class="form-group"><label>Avanzamento (%)</label><input type="number" id="modal-progress" min="0" max="100" value="${proj.progress_pct||0}" /></div>
         <div class="form-group" style="grid-column:1/-1"><label>Note interne</label><textarea id="modal-notes">${escHtml(proj.notes||'')}</textarea></div>
       </div>
     </div>
-    <div class="modal-actions">
-      <button class="btn btn-ghost" onclick="closeModal()">Annulla</button>
-      <button class="btn btn-primary" onclick="saveProject(${projectId})">Salva</button>
+    <div class="modal-actions" style="justify-content:space-between">
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-ghost" onclick="duplicateProject(${projectId})">Duplica</button>
+        <button class="btn btn-ghost" style="color:var(--red);border-color:var(--red)" onclick="deleteProject(${projectId})">Elimina</button>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-ghost" onclick="closeModal()">Annulla</button>
+        <button class="btn btn-primary" onclick="saveProject(${projectId})">Salva</button>
+      </div>
     </div>`:
     `<div class="modal-actions"><button class="btn btn-ghost" onclick="closeModal()">Chiudi</button></div>`;
 
@@ -850,6 +1247,7 @@ function renderMilestoneList(milestones,isAdmin){
            ${mi.completed?'&#10003;':''}</div>
       <div class="mi-name ${mi.completed?'done-name':''}">${escHtml(mi.title)}</div>
       <div class="mi-date">${formatDate(mi.due_date)}</div>
+      ${isAdmin?`<button class="mi-edit" onclick="startEditMilestone(${mi.id})" title="Modifica">&#9998;</button>`:''}
       ${isAdmin?`<button class="mi-delete" onclick="deleteMilestone(${mi.id})" title="Elimina">&#x2715;</button>`:''}
     </div>`).join('');
 }
@@ -860,14 +1258,27 @@ document.getElementById('modal-overlay').addEventListener('click',e=>{if(e.targe
 // ── SAVE PROJECT ──────────────────────────────────────────────
 async function saveProject(id){
   if(currentRole!=='admin')return;
+  const proj=allProjects.find(p=>p.id===id);
+  const title=document.getElementById('modal-title').value.trim();
+  const area=document.getElementById('modal-area').value;
   const status=document.getElementById('modal-status').value;
+  const start=document.getElementById('modal-start').value;
+  const end=document.getElementById('modal-end').value;
   const progress=parseInt(document.getElementById('modal-progress').value)||0;
   const notes=document.getElementById('modal-notes').value;
-  const{error}=await sb.from('projects').update({status,progress_pct:progress,notes,updated_at:new Date().toISOString()}).eq('id',id);
+  if(!title){showToast('Il titolo non può essere vuoto','error');return}
+  const upd={title,area,status,start_date:start||null,end_date:end||null,progress_pct:progress,notes,updated_at:new Date().toISOString()};
+  // se cambia sezione, mettilo in coda alla nuova
+  if(proj&&area!==proj.area){
+    const maxSort=allProjects.filter(p=>p.area===area&&p.id!==id).reduce((m,p)=>Math.max(m,p.sort_order||0),0);
+    upd.sort_order=maxSort+10;
+  }
+  const{error}=await sb.from('projects').update(upd).eq('id',id);
   if(error){showToast('Errore: '+error.message,'error');return}
   const idx=allProjects.findIndex(p=>p.id===id);
-  if(idx>=0){allProjects[idx].status=status;allProjects[idx].progress_pct=progress;allProjects[idx].notes=notes}
-  await sb.from('audit_log').insert({user_id:currentUser.id,table_name:'projects',record_id:id,action:'UPDATE',new_data:{status,progress_pct:progress,notes}});
+  if(idx>=0)Object.assign(allProjects[idx],{title,area,status,start_date:start||null,end_date:end||null,progress_pct:progress,notes,sort_order:upd.sort_order??allProjects[idx].sort_order});
+  if(area)expandedAreas[area]=true;
+  await sb.from('audit_log').insert({user_id:currentUser.id,table_name:'projects',record_id:id,action:'UPDATE',new_data:{title,area,status,progress_pct:progress}});
   closeModal();updateKPIs();renderGantt();
   showToast('Progetto aggiornato','success');
 }
@@ -918,6 +1329,42 @@ async function deleteMilestone(milestoneId){
   }
   renderGantt();
   showToast('Milestone eliminata','success');
+}
+
+function startEditMilestone(milestoneId){
+  if(currentRole!=='admin')return;
+  const mi=allMilestones.find(m=>m.id===milestoneId);
+  if(!mi)return;
+  const item=document.getElementById('mi-item-'+milestoneId);
+  if(!item)return;
+  const dateVal=mi.due_date?String(mi.due_date).slice(0,10):'';
+  item.innerHTML=`
+    <div class="mi-edit-form">
+      <input type="text" id="edmi-t-${mi.id}" value="${escHtml(mi.title)}" placeholder="Descrizione milestone..." />
+      <input type="date" id="edmi-d-${mi.id}" value="${dateVal}" />
+      <button class="btn btn-primary" onclick="saveMilestoneEdit(${mi.id})">Salva</button>
+      <button class="btn btn-ghost" onclick="cancelMilestoneEdit(${mi.project_id})">Annulla</button>
+    </div>`;
+  const ti=document.getElementById('edmi-t-'+mi.id);if(ti){ti.focus();ti.select()}
+}
+function cancelMilestoneEdit(projectId){
+  const milestones=allMilestones.filter(m=>m.project_id===projectId);
+  document.getElementById('milestone-list').innerHTML=renderMilestoneList(milestones,currentRole==='admin');
+}
+async function saveMilestoneEdit(milestoneId){
+  if(currentRole!=='admin')return;
+  const mi=allMilestones.find(m=>m.id===milestoneId);
+  if(!mi)return;
+  const title=document.getElementById('edmi-t-'+milestoneId).value.trim();
+  const date=document.getElementById('edmi-d-'+milestoneId).value;
+  if(!title||!date){showToast('Inserisci descrizione e data','error');return}
+  const{error}=await sb.from('milestones').update({title,due_date:date}).eq('id',milestoneId);
+  if(error){showToast('Errore: '+error.message,'error');return}
+  mi.title=title;mi.due_date=date;
+  const milestones=allMilestones.filter(m=>m.project_id===mi.project_id);
+  document.getElementById('milestone-list').innerHTML=renderMilestoneList(milestones,true);
+  renderGantt();
+  showToast('Milestone aggiornata','success');
 }
 
 // ── KEEP-ALIVE PING ───────────────────────────────────────────
