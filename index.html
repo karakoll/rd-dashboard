@@ -92,6 +92,7 @@ body{background:var(--bg);color:var(--text);font-family:"DM Sans",sans-serif;fon
 .role-badge{padding:2px 7px;border-radius:10px;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
 .role-admin{background:rgba(43,94,167,.15);color:var(--accent)}
 .role-viewer{background:rgba(100,100,100,.15);color:var(--text3)}
+.role-viewer_completo{background:rgba(43,94,167,.15);color:var(--accent)}
 
 /* MAIN */
 #main-content{flex:1;padding:20px}
@@ -439,7 +440,7 @@ body{background:var(--bg);color:var(--text);font-family:"DM Sans",sans-serif;fon
         <span class="filter-label">Persona</span>
         <select id="mbo-person-filter" onchange="renderMBO()"><option value="all">Tutte</option></select>
         <div style="flex:1"></div>
-        <button class="btn btn-ghost btn-small" onclick="openMboAddModal()">+ Aggiungi scheda MBO</button>
+        <button class="btn btn-ghost btn-small" id="mbo-add-btn" onclick="openMboAddModal()">+ Aggiungi scheda MBO</button>
       </div>
       <div id="mbo-list">
         <div class="loading-state"><div class="loading-spinner"></div>Caricamento MBO...</div>
@@ -458,6 +459,9 @@ const { createClient } = supabase;
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 let currentUser=null, currentRole='viewer';
+// Helper ruoli: chi può vedere/modificare cosa
+function canViewMbo(){return currentRole==='admin'||currentRole==='viewer_completo';}
+function canEditMbo(){return currentRole==='admin';}
 let allProjects=[], allSubtasks=[], allMilestones=[];
 let allSections=[];            // righe gantt_sections {id,name,color,sort_order}
 let activeAreaFilter='all', activeStatusFilter='all', activeKpiFilter='all';
@@ -521,10 +525,13 @@ async function initApp(user){
   document.getElementById('user-name').textContent=name;
   document.getElementById('user-avatar').textContent=name.charAt(0).toUpperCase();
   const rb=document.getElementById('role-badge');
-  rb.textContent=currentRole;rb.className='role-badge role-'+currentRole;
-  document.getElementById('tab-mbo').style.display = currentRole==='admin' ? '' : 'none';
+  const roleLabels={admin:'admin',viewer:'viewer',viewer_completo:'viewer completo'};
+  rb.textContent=roleLabels[currentRole]||currentRole;rb.className='role-badge role-'+currentRole;
+  document.getElementById('tab-mbo').style.display = canViewMbo() ? '' : 'none';
   const agt=document.getElementById('admin-gantt-toolbar');
   if(agt)agt.style.display = currentRole==='admin' ? 'flex' : 'none';
+  const mab=document.getElementById('mbo-add-btn');
+  if(mab)mab.style.display = canEditMbo() ? '' : 'none';
   document.getElementById('login-screen').style.display='none';
   document.getElementById('app').style.display='flex';
   updateDateIndicator();
@@ -1504,7 +1511,7 @@ function switchView(v){
 
 // ── MBO: LOAD ─────────────────────────────────────────────────
 async function loadMBO(){
-  if(currentRole!=='admin')return;
+  if(!canViewMbo())return;
   const[pe,ca,ob,su]=await Promise.all([
     sb.from('mbo_people').select('*').order('sort_order'),
     sb.from('mbo_cards').select('*').order('year'),
@@ -1570,7 +1577,7 @@ function mboComputeCard(card){
 
 // ── MBO: RENDER ───────────────────────────────────────────────
 function renderMBO(){
-  if(currentRole!=='admin')return;
+  if(!canViewMbo())return;
   const yearSel=document.getElementById('mbo-year-filter').value;
   const personSel=document.getElementById('mbo-person-filter').value;
   const list=document.getElementById('mbo-list');
@@ -1586,6 +1593,7 @@ function renderMBO(){
 }
 
 function renderMBOCard(card){
+  const ed=canEditMbo();
   const person=mboPeople.find(p=>p.id===card.person_id);
   const name=person?person.full_name:'—';
   const initial=name.charAt(0).toUpperCase();
@@ -1630,19 +1638,23 @@ function renderMBOCard(card){
     <div class="mbo-gate">
       <div class="field">
         <label>EBITDA target (€)</label>
-        <input type="number" value="${card.ebitda_target}" onchange="updateCardField(${card.id},'ebitda_target',this.value)" />
+        ${ed?`<input type="number" value="${card.ebitda_target}" onchange="updateCardField(${card.id},'ebitda_target',this.value)" />`
+            :`<div class="ro">€ ${Number(card.ebitda_target).toLocaleString('it-IT')}</div>`}
       </div>
       <div class="field">
         <label>EBITDA effettivo (€)</label>
-        <input type="number" value="${card.ebitda_effettivo==null?'':card.ebitda_effettivo}" placeholder="non inserito" onchange="updateCardField(${card.id},'ebitda_effettivo',this.value)" />
+        ${ed?`<input type="number" value="${card.ebitda_effettivo==null?'':card.ebitda_effettivo}" placeholder="non inserito" onchange="updateCardField(${card.id},'ebitda_effettivo',this.value)" />`
+            :`<div class="ro">${card.ebitda_effettivo==null?'<span style="color:var(--text3)">non inserito</span>':'€ '+Number(card.ebitda_effettivo).toLocaleString('it-IT')}</div>`}
       </div>
       <div class="field">
         <label>Gate minimo (%)</label>
-        <input type="number" step="1" value="${Math.round(card.gate_pct*100)}" onchange="updateCardField(${card.id},'gate_pct',this.value/100)" />
+        ${ed?`<input type="number" step="1" value="${Math.round(card.gate_pct*100)}" onchange="updateCardField(${card.id},'gate_pct',this.value/100)" />`
+            :`<div class="ro">${Math.round(card.gate_pct*100)}%</div>`}
       </div>
       <div class="field">
         <label>Bonus target (€)</label>
-        <input type="number" value="${card.target_bonus}" onchange="updateCardField(${card.id},'target_bonus',this.value)" />
+        ${ed?`<input type="number" value="${card.target_bonus}" onchange="updateCardField(${card.id},'target_bonus',this.value)" />`
+            :`<div class="ro">€ ${Number(card.target_bonus).toLocaleString('it-IT')}</div>`}
       </div>
       <div class="field">
         <label>Regola erogazione</label>
@@ -1683,6 +1695,7 @@ function mboTimeline(obj,year){
 }
 
 function renderMBOObjective(obj,eur,card){
+  const ed=canEditMbo();
   const pct=mboObjPct(obj);
   const isManual=!!obj.manual_pct;
   const[tierLbl,tierCls]=mboTierLabel(pct);
@@ -1699,7 +1712,7 @@ function renderMBOObjective(obj,eur,card){
     const subPct=s.target_value>0?Math.min(999,Math.round(s.current_value/s.target_value*100)):0;
     const isDone=s.unit==='fatto';
     const editing=mboEditingSub===s.id;
-    if(editing){
+    if(editing&&ed){
       return `
       <div class="mbo-sub-item mbo-sub-edit" onclick="event.stopPropagation()">
         <input type="text" id="edsub-t-${s.id}" value="${escHtml(s.title)}" placeholder="Sotto-obiettivo..." style="flex:2;min-width:120px;font-size:11px;padding:4px 6px;border:1px solid var(--border2);border-radius:4px;font-family:inherit" />
@@ -1710,20 +1723,27 @@ function renderMBOObjective(obj,eur,card){
         <button class="mbo-sub-btn" onclick="cancelEditSub()" title="Annulla">✕</button>
       </div>`;
     }
-    const valField=isDone
-      ? `<select onchange="updateSubField(${s.id},'current_value',this.value)" style="font-size:11px;padding:3px 5px;border:1px solid var(--border2);border-radius:4px">
-           <option value="0" ${Number(s.current_value)?'':'selected'}>Da fare</option>
-           <option value="1" ${Number(s.current_value)?'selected':''}>Fatto</option>
-         </select>`
-      : `<input type="number" value="${s.current_value}" onchange="updateSubField(${s.id},'current_value',this.value)" />
-         <span class="tg">/ ${s.target_value}${s.unit?' '+escHtml(s.unit):''}</span>`;
+    let valField;
+    if(ed){
+      valField=isDone
+        ? `<select onchange="updateSubField(${s.id},'current_value',this.value)" style="font-size:11px;padding:3px 5px;border:1px solid var(--border2);border-radius:4px">
+             <option value="0" ${Number(s.current_value)?'':'selected'}>Da fare</option>
+             <option value="1" ${Number(s.current_value)?'selected':''}>Fatto</option>
+           </select>`
+        : `<input type="number" value="${s.current_value}" onchange="updateSubField(${s.id},'current_value',this.value)" />
+           <span class="tg">/ ${s.target_value}${s.unit?' '+escHtml(s.unit):''}</span>`;
+    }else{
+      valField=isDone
+        ? `<span class="ro">${Number(s.current_value)?'Fatto':'Da fare'}</span>`
+        : `<span class="ro">${s.current_value}</span><span class="tg">/ ${s.target_value}${s.unit?' '+escHtml(s.unit):''}</span>`;
+    }
     return `
       <div class="mbo-sub-item">
         <div class="nm">${escHtml(s.title)}${!isDone?` <span style="color:var(--text3)">(${subPct}%)</span>`:''}</div>
         <div class="vals">${valField}</div>
         <div class="dd">${formatDate(s.due_date)}</div>
-        <button class="mbo-sub-btn" onclick="event.stopPropagation();startEditSub(${s.id})" title="Modifica">✎</button>
-        <button class="mbo-sub-btn del" onclick="event.stopPropagation();deleteSubObjective(${s.id})" title="Elimina">🗑</button>
+        ${ed?`<button class="mbo-sub-btn" onclick="event.stopPropagation();startEditSub(${s.id})" title="Modifica">✎</button>
+        <button class="mbo-sub-btn del" onclick="event.stopPropagation();deleteSubObjective(${s.id})" title="Elimina">🗑</button>`:''}
       </div>`;
   }).join('');
 
@@ -1762,24 +1782,27 @@ function renderMBOObjective(obj,eur,card){
     </div>
     <div class="mbo-obj-prog">
       <span style="font-size:11px;color:var(--text3)">Raggiung.</span>
-      <input class="pctin ${isManual?'':'auto'}" type="number" min="0" value="${pct}" onchange="updateObjPct(${obj.id},this.value)" title="${isManual?'Valore manuale':'Calcolato dai sotto-obiettivi'}" />
+      ${ed?`<input class="pctin ${isManual?'':'auto'}" type="number" min="0" value="${pct}" onchange="updateObjPct(${obj.id},this.value)" title="${isManual?'Valore manuale':'Calcolato dai sotto-obiettivi'}" />`
+          :`<span class="ro" style="font-weight:700">${pct}</span>`}
       <span style="font-size:11px;color:var(--text3)">%</span>
-      <span class="mbo-auto-badge ${isManual?'man':''}" onclick="event.stopPropagation();toggleObjManual(${obj.id})" title="${isManual?'Torna al calcolo automatico':'Blocca su valore manuale'}">${isManual?'manuale':'auto'}</span>
+      ${ed?`<span class="mbo-auto-badge ${isManual?'man':''}" onclick="event.stopPropagation();toggleObjManual(${obj.id})" title="${isManual?'Torna al calcolo automatico':'Blocca su valore manuale'}">${isManual?'manuale':'auto'}</span>`
+          :`<span class="mbo-auto-badge ${isManual?'man':''}" style="cursor:default">${isManual?'manuale':'auto'}</span>`}
     </div>
     ${timelineHtml}
     <div class="mbo-sub ${open?'open':''}" id="mbo-sub-${obj.id}">
       <div style="display:flex;align-items:center;gap:8px;margin:4px 0 8px;font-size:11px">
         <span style="color:var(--text3)">Progetto collegato:</span>
-        <select onchange="linkObjProject(${obj.id},this.value)" onclick="event.stopPropagation()" style="flex:1;font-size:11px;padding:4px 6px;border:1px solid var(--border2);border-radius:4px;font-family:inherit">${projOptions}</select>
+        ${ed?`<select onchange="linkObjProject(${obj.id},this.value)" onclick="event.stopPropagation()" style="flex:1;font-size:11px;padding:4px 6px;border:1px solid var(--border2);border-radius:4px;font-family:inherit">${projOptions}</select>`
+            :`<span class="ro" style="flex:1">${linkedProj?escHtml(linkedProj.title):'— nessun progetto —'}</span>`}
       </div>
       ${subs.length?subsHtml:'<div style="font-size:11px;color:var(--text3);padding:6px 0">Nessun sotto-obiettivo.</div>'}
-      <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap" onclick="event.stopPropagation()">
+      ${ed?`<div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap" onclick="event.stopPropagation()">
         <input type="text" id="newsub-t-${obj.id}" placeholder="Sotto-obiettivo..." style="flex:2;min-width:140px;font-size:11px;padding:5px 7px;border:1px solid var(--border2);border-radius:4px;font-family:inherit" />
         <input type="number" id="newsub-tg-${obj.id}" placeholder="target" style="width:64px;font-size:11px;padding:5px 7px;border:1px solid var(--border2);border-radius:4px;font-family:inherit" />
         <input type="text" id="newsub-u-${obj.id}" placeholder="unità" style="width:64px;font-size:11px;padding:5px 7px;border:1px solid var(--border2);border-radius:4px;font-family:inherit" />
         <input type="date" id="newsub-d-${obj.id}" style="font-size:11px;padding:4px 6px;border:1px solid var(--border2);border-radius:4px;font-family:inherit" />
         <button class="btn btn-primary" style="width:auto;padding:5px 12px;font-size:11px" onclick="addSubObjective(${obj.id})">+ Aggiungi</button>
-      </div>
+      </div>`:''}
     </div>
   </div>`;
 }
