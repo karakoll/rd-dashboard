@@ -400,6 +400,7 @@ body{background:var(--bg);color:var(--text);font-family:"DM Sans",sans-serif;fon
       <div class="kpi-card" id="kpi-card-pianificato" onclick="setKpiFilter('pianificato')">
         <div class="kpi-label">Avanzamento Medio</div>
         <div class="kpi-value" id="kpi-progress" style="color:var(--accent)">-</div>
+        <div class="kpi-sub" style="font-size:11px;color:var(--text-muted,#888);margin-top:2px" id="kpi-progress-sub"></div>
         <div class="kpi-bar"><div class="kpi-bar-fill" id="kpi-bar-prog" style="background:var(--accent)"></div></div>
       </div>
     </div>
@@ -573,13 +574,16 @@ function updateKPIs(){
   const active=allProjects.filter(p=>p.status==='in_corso').length;
   const done=allProjects.filter(p=>p.status==='completato').length;
   const susp=allProjects.filter(p=>p.status==='sospeso').length;
-  const avgProg=total?Math.round(allProjects.reduce((s,p)=>s+(p.progress_pct||0),0)/total):0;
+  const _today=new Date().toISOString().slice(0,10);
+  const _started=allProjects.filter(p=>!p.start_date||p.start_date<=_today);
+  const avgProg=_started.length?Math.round(_started.reduce((s,p)=>s+(p.progress_pct||0),0)/_started.length):0;
   document.getElementById('kpi-total').textContent=total;
   document.getElementById('kpi-active').textContent=active;
   document.getElementById('kpi-active-sub').textContent=total?`${Math.round(active/total*100)}% del totale`:'';
   document.getElementById('kpi-done').textContent=done;
   document.getElementById('kpi-suspended').textContent=susp;
   document.getElementById('kpi-progress').textContent=avgProg+'%';
+  {const _sub=document.getElementById('kpi-progress-sub');if(_sub)_sub.textContent=`su ${_started.length} progetti avviati`;}
   document.getElementById('kpi-bar-active').style.width=(total?active/total*100:0)+'%';
   document.getElementById('kpi-bar-done').style.width=(total?done/total*100:0)+'%';
   document.getElementById('kpi-bar-susp').style.width=(total?susp/total*100:0)+'%';
