@@ -1,7 +1,7 @@
-# ============================================================
+# ==========================================================
 # Supabase Keep-Alive Ping
 # 7 ping al giorno ad orari distribuiti (ora italiana circa)
-# ============================================================
+# ==========================================================
 name: Supabase Keep-Alive
 
 on:
@@ -13,7 +13,10 @@ on:
     - cron: '53 15 * * *'   # 17:53
     - cron: '29 17 * * *'   # 19:29
     - cron: '07 20 * * *'   # 22:07
-  workflow_dispatch:          # esecuzione manuale dalla tab Actions
+  workflow_dispatch:        # esecuzione manuale dalla tab Actions
+
+permissions:
+  contents: write           # necessario per il commit automatico
 
 jobs:
   ping:
@@ -33,3 +36,19 @@ jobs:
             echo "Unexpected status: $STATUS"
             exit 1
           fi
+
+      - name: Update keep-alive timestamp on dedicated branch
+        run: |
+          git config --global user.name  "keep-alive-bot"
+          git config --global user.email "actions@github.com"
+          git clone --depth 1 --branch keep-alive \
+            "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" repo \
+            || git clone --depth 1 \
+            "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" repo
+          cd repo
+          git checkout keep-alive 2>/dev/null || git checkout --orphan keep-alive
+          git rm -rf . 2>/dev/null || true
+          date -u +"%Y-%m-%dT%H:%M:%SZ" > last-ping.txt
+          git add last-ping.txt
+          git commit -m "chore: keep-alive ping" || echo "Nessuna modifica"
+          git push origin keep-alive
